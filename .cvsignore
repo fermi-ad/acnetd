@@ -1,0 +1,5 @@
+.git*
+.svn
+acnetd
+acnetd_optimized
+validator
