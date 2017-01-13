@@ -892,6 +892,16 @@ class ReplyPool {
     void generateRpyReport(std::ostream&);
 };
 
+// Classes derived from this class cannot be copied.
+
+class Noncopyable {
+    Noncopyable(Noncopyable const&);
+    Noncopyable& operator=(Noncopyable const&);
+
+ public:
+    Noncopyable() {}
+    ~Noncopyable() {}
+};
 
 typedef std::set<reqid_t> ReqList;
 typedef std::set<rpyid_t> RpyList;
@@ -902,7 +912,7 @@ typedef std::set<rpyid_t> RpyList;
 //
 // Information related to all connected  tasks.
 
-class TaskInfo {
+class TaskInfo : private Noncopyable {
     time_t boot;
     TaskPool& taskPool_;
     taskhandle_t handle_;
@@ -912,11 +922,6 @@ class TaskInfo {
 
     unsigned pendingRequests;
     unsigned maxPendingRequests;
-
-    // Don't allow copying.
-
-    TaskInfo(TaskInfo const&);
-    TaskInfo& operator=(TaskInfo const&);
 
  protected:
     ReqList requests;
@@ -993,7 +998,6 @@ class ExternalTask : public TaskInfo {
     mutable time_t lastCommandTime, lastAliveCheckTime;
 
     ExternalTask();
-    ExternalTask& operator=(ExternalTask const&);
 
  protected:
     bool checkResult(ssize_t);
@@ -1201,8 +1205,8 @@ typedef vector<TaskInfo *> TaskList;
 //
 // This class holds the entire state of an ACNET node allowing acnetd
 // to become a host for multiple "virtual" acnetd nodes
-// 
-class TaskPool {
+//
+class TaskPool : private Noncopyable {
     time_t taskStatTimeBase;
     trunknode_t node_;
     nodename_t nodeName_;
@@ -1265,7 +1269,7 @@ extern uint16_t acnetPort;
 class DataOut;
 struct pollfd;
 
-class IpInfo {
+class IpInfo : private Noncopyable {
     sockaddr_in in;
     nodename_t name_;
     DataOut* partial;
@@ -1298,7 +1302,7 @@ class IpInfo {
 #define ACNETD_ACK	(2)
 #define ACNETD_DATA	(3)
 
-class TcpClientProtocolHandler
+class TcpClientProtocolHandler : private Noncopyable
 {
     int getSocketPort(int);
 
