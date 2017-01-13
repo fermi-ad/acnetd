@@ -3,3 +3,4 @@
 acnetd
 acnetd_optimized
 validator
+*.o
