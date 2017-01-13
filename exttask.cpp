@@ -1,4 +1,5 @@
 #include <signal.h>
+#include <cerrno>
 #include "server.h"
 
 ExternalTask::ExternalTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
