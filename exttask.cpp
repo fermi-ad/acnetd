@@ -297,7 +297,7 @@ void ExternalTask::handleRequestAck(RequestAckCommand const *cmd)
 {
     Ack ack;
 
-    if (acceptsRequests())
+    if (!acceptsRequests())
 	ack.setStatus(ACNET_IVM);
     else {
 	RpyInfo* const rep = taskPool().rpyPool.rpyInfo(ntohs(cmd->rpyid));
