@@ -1,6 +1,6 @@
 #include "server.h"
 
-RemoteTask::RemoteTask(TaskPool* taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
+RemoteTask::RemoteTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			     uint16_t dataPort, uint32_t remoteAddr) :
     ExternalTask(taskPool, handle, pid, cmdPort, dataPort),  remoteAddr(remoteAddr)
 {

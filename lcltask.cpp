@@ -1,6 +1,6 @@
 #include "server.h"
 
-LocalTask::LocalTask(TaskPool* taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
+LocalTask::LocalTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			     uint16_t dataPort) :
     ExternalTask(taskPool, handle, pid, cmdPort, dataPort), receiving(false)
 {

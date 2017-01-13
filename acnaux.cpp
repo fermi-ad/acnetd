@@ -13,9 +13,9 @@ void sendKillerMessage(trunknode_t const addr)
 		     reinterpret_cast<uint8_t const*>(data), sizeof(data));
 }
 
-AcnetTask::AcnetTask(TaskPool* taskPool) : 
-		InternalTask(taskPool, taskhandle_t(ator("ACNET")))
-{ 
+AcnetTask::AcnetTask(TaskPool& taskPool) :
+    InternalTask(taskPool, taskhandle_t(ator("ACNET")))
+{
 }
 
 void AcnetTask::versionHandler(rpyid_t id)

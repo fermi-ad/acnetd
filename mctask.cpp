@@ -1,6 +1,6 @@
 #include "server.h"
 
-MulticastTask::MulticastTask(TaskPool* taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
+MulticastTask::MulticastTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			     uint16_t dataPort, uint32_t mcAddr) :
     ExternalTask(taskPool, handle, pid, cmdPort, dataPort),  mcAddr(mcAddr)
 {

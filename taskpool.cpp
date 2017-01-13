@@ -18,7 +18,7 @@ TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeNam
     for (int ii = 0; ii < MAX_TASKS; ii++)
 	tasks_[ii] = 0;
 
-    tasks_[0] = new AcnetTask(this);
+    tasks_[0] = new AcnetTask(*this);
     tasks_[0]->id_ = 0;
     active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNET")), tasks_[0]));
     active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNAUX")), tasks_[0]));
@@ -180,16 +180,16 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 		    uint32_t mcAddr;
 
 		    if (nameLookup(nodename_t(clientName), mcAddr) && IN_MULTICAST(mcAddr))
-			 task = new MulticastTask(this, clientName, ntohl(cmd->pid), cmdPort, dataPort, mcAddr);
+			 task = new MulticastTask(*this, clientName, ntohl(cmd->pid), cmdPort, dataPort, mcAddr);
 		    else {
 			if (taskExists(clientName))
 			    throw ACNET_NAME_IN_USE;
 
 			if (len == sizeof(TcpConnectCommand))
-			    task = new RemoteTask(this, clientName, ntohl(cmd->pid), cmdPort, dataPort, 
+			    task = new RemoteTask(*this, clientName, ntohl(cmd->pid), cmdPort, dataPort,
 					    ntohl(((TcpConnectCommand const* const) cmd)->remoteAddr));
 			else
-			    task = new LocalTask(this, clientName, ntohl(cmd->pid), cmdPort, dataPort);
+			    task = new LocalTask(*this, clientName, ntohl(cmd->pid), cmdPort, dataPort);
 		    }
 
 		    task->id_ = (acnet_taskid_t) taskId;
