@@ -10,8 +10,8 @@
 // Creates the object by initializing some default values. Since the default values reflect an unused object, it adds itself
 // to the free list.
 
-TaskInfo::TaskInfo(TaskPool* taskPool, taskhandle_t h) :
-    boot(now().tv_sec), taskPool_(*taskPool), handle_(h),
+TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h) :
+    boot(now().tv_sec), taskPool_(taskPool), handle_(h),
     pendingRequests(0), maxPendingRequests(0)
 {
 }

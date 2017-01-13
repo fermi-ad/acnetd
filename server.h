@@ -933,7 +933,7 @@ class TaskInfo {
     mutable StatCounter statRpyXmt;
     mutable StatCounter statLostPkt;
 
-    TaskInfo(TaskPool*, taskhandle_t);
+    TaskInfo(TaskPool&, taskhandle_t);
     virtual ~TaskInfo() {}
 
     void setHandle(taskhandle_t th)		{ handle_ = th; }
@@ -1018,7 +1018,7 @@ class ExternalTask : public TaskInfo {
     virtual void handleUnknownCommand(CommandHeader const *, size_t len);
 
  public:
-    ExternalTask(TaskPool*, taskhandle_t, pid_t, uint16_t, uint16_t);
+    ExternalTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t);
     virtual ~ExternalTask() {}
 
     bool stillAlive(int = 0) const;
@@ -1061,7 +1061,7 @@ class LocalTask : public ExternalTask {
     void handleBlockRequests();
 
  public:
-    LocalTask(TaskPool*, taskhandle_t, pid_t, uint16_t, uint16_t);
+    LocalTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t);
     virtual ~LocalTask() {}
 
     bool acceptsUsm() const { return receiving; }
@@ -1081,7 +1081,7 @@ class RemoteTask : public ExternalTask {
     RemoteTask& operator=(LocalTask const&);
 
  public:
-    RemoteTask(TaskPool*, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
+    RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
     virtual ~RemoteTask() {}
     
     bool acceptsUsm() const { return false; }
@@ -1105,7 +1105,7 @@ class MulticastTask : public ExternalTask {
     MulticastTask& operator=(MulticastTask const&);
 
  public:
-    MulticastTask(TaskPool*, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
+    MulticastTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
     virtual ~MulticastTask();
 
     bool acceptsUsm() const { return true; }
@@ -1128,7 +1128,8 @@ class InternalTask : public TaskInfo {
     void _clear_receiving() { }
 
  public:
-    InternalTask(TaskPool* taskPool, taskhandle_t handle) : TaskInfo(taskPool, handle) { }
+    InternalTask(TaskPool& taskPool, taskhandle_t handle) :
+	TaskInfo(taskPool, handle) { }
     virtual ~InternalTask() {}
 
     pid_t pid() const;
@@ -1182,7 +1183,7 @@ class AcnetTask : public InternalTask {
     void requestReport(rpyid_t);
 
  public:
-    AcnetTask(TaskPool*);
+    AcnetTask(TaskPool&);
     virtual ~AcnetTask() {}
 
     char const* name() const { return "AcnetTask"; }

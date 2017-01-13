@@ -1,8 +1,8 @@
 #include <signal.h>
 #include "server.h"
 
-ExternalTask::ExternalTask(TaskPool* taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
-			    uint16_t dataPort) : TaskInfo(taskPool, handle), 
+ExternalTask::ExternalTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
+			    uint16_t dataPort) : TaskInfo(taskPool, handle),
 			    pid_(pid), contSocketErrors(0), totalSocketErrors(0),
 			    lastCommandTime(now().tv_sec), lastAliveCheckTime(now().tv_sec)
 {
