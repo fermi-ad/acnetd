@@ -7,10 +7,10 @@
 #include <netinet/udp.h>
 #include <cassert>
 #include <string>
-#include <queue>
 #include <limits>
 #include <set>
 #include <map>
+#include <vector>
 #include <sstream>
 #include <memory>
 #include <stdexcept>
@@ -562,33 +562,6 @@ struct AcnetClientMessage {
 } __attribute__((packed));
 
 // Project-wide types...
-
-typedef std::queue<void*> BufferQueue;
-
-template <class T>
-class QueueAdaptor : protected BufferQueue {
- public:
-    bool empty() const { return BufferQueue::empty(); }
-    size_type size() const { return BufferQueue::size(); }
-
-    T* peek() { return empty() ? 0 : reinterpret_cast<T*>(front()); }
-
-    T* pop()
-    {
-	if (!empty()) {
-	    T* const ptr = reinterpret_cast<T*>(front());
-
-	    BufferQueue::pop();
-	    return ptr;
-	}
-	return 0;
-    }
-
-    void push(T* ptr)
-    {
-	BufferQueue::push(ptr);
-    }
-};
 
 class StatCounter {
     uint32_t counter;
