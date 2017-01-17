@@ -196,7 +196,7 @@ struct CmdLineArgs {
     void getTaskRejectList(std::string s)
     {
 	std::string name;
-	istringstream is(s);
+	std::istringstream is(s);
 
 	while (getline(is, s, ',')) {
 	    taskReject.insert(taskhandle_t(ator(s.c_str())));

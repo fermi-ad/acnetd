@@ -341,8 +341,8 @@ bool TaskPool::rename(TaskInfo* task, taskhandle_t th)
 
 	// Remove this task from the map and insert it with the new task name
 
-	pair<TaskHandleMap::iterator, TaskHandleMap::iterator> ii =
-				    active.equal_range(task->handle());
+	std::pair<TaskHandleMap::iterator, TaskHandleMap::iterator> ii =
+	    active.equal_range(task->handle());
 
 	while (ii.first != ii.second)
 	    if (ii.first->second->equals(task)) {
@@ -421,7 +421,8 @@ void TaskPool::removeOnlyThisTask(TaskInfo* const task, status_t status, bool se
 
     // Find and remove it from the active map.
 
-    pair<TaskHandleMap::iterator, TaskHandleMap::iterator> ii = active.equal_range(task->handle());
+    std::pair<TaskHandleMap::iterator, TaskHandleMap::iterator> ii =
+	active.equal_range(task->handle());
 
     while (ii.first != ii.second)
 	if (ii.first->second->equals(task)) {

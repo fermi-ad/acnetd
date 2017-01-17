@@ -253,16 +253,18 @@ void RequestPool::generateReqReport(std::ostream& os)
 	    "\t\t\t\t<col/>\n"
 	    "\t\t\t</colgroup>\n"
 	    "\t\t\t<thead>\n"
-	    "\t\t\t\t<tr><td colspan=\"2\">Request 0x" << hex << setw(4) << setfill('0') <<
+	    "\t\t\t\t<tr><td colspan=\"2\">Request 0x" << std::hex << std::setw(4) <<
+	    std::setfill('0') <<
 	    req->id() << (req->wantsMultReplies() ? " (MLT)" : "") << "</td></tr>\n"
 	    "\t\t\t</thead>\n"
 	    "\t\t\t<tbody>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<<
 	    rtoa(req->task().handle().raw()) << "'</td></tr>\n";
 	os << "\t\t\t\t<tr class =\"even\"><td class=\"label\">Request Target</td><td>Task '" <<
-	    rtoa(req->taskName().raw()) << "' on node " << remNode << " (" << hex << setw(4) << setfill('0') << req->remNode().raw() <<
+	    rtoa(req->taskName().raw()) << "' on node " << remNode << " (" << std::hex <<
+	    std::setw(4) << std::setfill('0') << req->remNode().raw() <<
 	    ")</td></tr>\n"
-	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << setfill(' ') << dec;
+	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 
 	printElapsedTime(os, currTime - req->initTime());
 

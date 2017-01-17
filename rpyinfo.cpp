@@ -407,15 +407,17 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    "\t\t\t\t<col/>\n"
 	    "\t\t\t</colgroup>\n"
 	    "\t\t\t<thead>\n"
-	    "\t\t\t\t<tr><td colspan=\"2\">Reply 0x" << hex << setw(4) << setfill('0') << rpy->id() <<
+	    "\t\t\t\t<tr><td colspan=\"2\">Reply 0x" << std::hex << std::setw(4) <<
+	    std::setfill('0') << rpy->id() <<
 	    (rpy->isMultReplier() ? " (MLT)" : "") << "</td></tr>\n"
 	    "\t\t\t</thead>\n"
 	    "\t\t\t<tbody>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<< rtoa(rpy->task().handle().raw()) << "'</td></tr>\n"
-	    "\t\t\t\t<tr class=\"even\"><td class=\"label\">Request Origin</td><td>Task " << setfill(' ') << dec <<
-	    (uint32_t) rpy->taskId() << " on node " << remNode << " (" << hex << setw(4) << setfill('0') << rpy->remNode().raw() <<
-	    "), request ID 0x" << setw(4) << rpy->reqId() << "</td></tr>\n"
-	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << setfill(' ') << dec;
+	    "\t\t\t\t<tr class=\"even\"><td class=\"label\">Request Origin</td><td>Task " <<
+	    std::setfill(' ') << std::dec <<
+	    (uint32_t) rpy->taskId() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
+	    "), request ID 0x" << std::setw(4) << rpy->reqId() << "</td></tr>\n"
+	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 	printElapsedTime(os, currTime - rpy->initTime());
 	os << " ago.</td></tr>\n";
 	if (rpy->lastUpdate.tv_sec != 0) {

@@ -16,8 +16,6 @@
 #include <stdexcept>
 #include "idpool.h"
 
-using namespace std;
-
 class TaskPool;
 
 // These symbols will help us port the code to several Unix operating
@@ -603,7 +601,7 @@ class StatCounter {
 
     inline StatCounter& operator++()
     {
-	if (counter < numeric_limits<uint32_t>::max())
+	if (counter < std::numeric_limits<uint32_t>::max())
 	    ++counter;
 
 	return *this;
@@ -612,7 +610,7 @@ class StatCounter {
     inline StatCounter& operator+=(StatCounter const& c)
     {
 	uint32_t tmp = counter + c.counter;
-	counter = tmp < counter ? (uint32_t) numeric_limits<uint32_t>::max() : tmp;
+	counter = tmp < counter ? (uint32_t) std::numeric_limits<uint32_t>::max() : tmp;
 	return *this;
     }
 
@@ -623,7 +621,7 @@ class StatCounter {
 
     inline operator uint16_t() const
     {
-	return min(counter, (uint32_t) numeric_limits<uint16_t>::max());
+	return std::min(counter, (uint32_t) std::numeric_limits<uint16_t>::max());
     }
 
     inline operator uint32_t() const
@@ -803,7 +801,7 @@ class ReplyPool {
 
  private:
     typedef std::multimap<uint32_t, RpyInfo*> ActiveMap;
-    typedef pair<ActiveMap::iterator, ActiveMap::iterator> ActiveRangeIterator;
+    typedef std::pair<ActiveMap::iterator, ActiveMap::iterator> ActiveRangeIterator;
 
     IdPool<RpyInfo, rpyid_t, N_REQID> idPool;
     Node root;
@@ -1142,9 +1140,9 @@ class AcnetTask : public InternalTask {
 
 };
 
-typedef multimap<taskhandle_t, TaskInfo *> TaskHandleMap;
-typedef pair<TaskHandleMap::const_iterator, TaskHandleMap::const_iterator> TaskRangeIterator;
-typedef vector<TaskInfo *> TaskList;
+typedef std::multimap<taskhandle_t, TaskInfo*> TaskHandleMap;
+typedef std::pair<TaskHandleMap::const_iterator, TaskHandleMap::const_iterator> TaskRangeIterator;
+typedef std::vector<TaskInfo*> TaskList;
 
 // TaskPool
 //
@@ -1300,10 +1298,10 @@ class WebSocketProtocolHandler : public TcpClientProtocolHandler
 	uint8_t data[];
     } __attribute__((packed));
 
-    vector<uint8_t> payload;
+    std::vector<uint8_t> payload;
     bool readPayloadLength(uint8_t, uint64_t&);
     bool readMask(bool, uint32_t&);
-    bool handleAcnetCommand(vector<uint8_t>&);
+    bool handleAcnetCommand(std::vector<uint8_t>&);
     bool sendBinaryDataToClient(Pkt2 *, ssize_t, uint16_t);
 
  public:
@@ -1400,7 +1398,7 @@ uint32_t countMulticastGroup(uint32_t);
 uint32_t ator(char const *);
 char const* rtoa(uint32_t, char * = 0);
 char const* rtoa_strip(uint32_t, char * = 0);
-string rtos(nodename_t);
+std::string rtos(nodename_t);
 
 // Misc
 
