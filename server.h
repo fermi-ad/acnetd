@@ -157,11 +157,6 @@ class nodename_t {
 
 #include "trunknode.h"
 
-inline uint32_t unique_node_key(trunknode_t n, uint16_t m)
-{
-    return (uint32_t(n.raw()) << 16) | uint32_t(m);
-}
-
 // Acnet header macros
 
 #define	ACNET_PORT		(6801)		// Standard ACNET port number (UDP)
