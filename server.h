@@ -653,7 +653,7 @@ struct AcnetRpyList {
     rpyid_t ids[N_RPYID];
 };
 
-#include "node.h"
+#include "timesensitive.h"
 
 class RequestPool;
 

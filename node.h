@@ -1,6 +1,3 @@
-#include <time.h>
-#include <sys/time.h>
-
 class Node {
     Node* next_;
     Node* prev_;
@@ -16,16 +13,4 @@ class Node {
     Node* prev() const { return prev_; }
     void detach();
     virtual void update(Node*);
-};
-
-timeval const& now();
-timeval operator+(timeval const&, unsigned);
-bool operator<=(timeval const&, timeval const&);
-
-struct TimeSensitive : public Node {
-    timeval lastUpdate;
-
-    TimeSensitive();
-    void update(Node*);
-    virtual timeval expiration() const = 0;
 };
