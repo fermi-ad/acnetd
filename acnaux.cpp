@@ -69,9 +69,9 @@ void AcnetTask::taskIdHandler(rpyid_t id, uint16_t const* const data, uint16_t d
 
 	    sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
 	} else
-	    sendLastReply(id, ACNET_NOTASK, 0, 0);
+	    sendLastReply(id, ACNET_NOTASK);
     } else
-	sendLastReply(id, ACNET_LEVEL2, 0, 0);
+	sendLastReply(id, ACNET_LEVEL2);
 }
 
 void AcnetTask::taskNameHandler(rpyid_t id, uint8_t subType)
@@ -83,7 +83,7 @@ void AcnetTask::taskNameHandler(rpyid_t id, uint8_t subType)
 
 	sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
     } else
-	sendLastReply(id, ACNET_NOTASK, 0, 0);
+	sendLastReply(id, ACNET_NOTASK);
 }
 
 void AcnetTask::killerMessageHandler(rpyid_t id, uint8_t subType, uint16_t const* const data, uint16_t dataSize)
@@ -91,7 +91,7 @@ void AcnetTask::killerMessageHandler(rpyid_t id, uint8_t subType, uint16_t const
     // Respond to the requestor task first, since the killer message
     // may destroy our reply ID!
 
-    sendLastReply(id, subType == 2 ? ACNET_SUCCESS : ACNET_LEVEL2, 0, 0);
+    sendLastReply(id, subType == 2 ? ACNET_SUCCESS : ACNET_LEVEL2);
 
     // Validate the killer message packet.
 
@@ -206,7 +206,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 
 		if (trunkIndex == 0 && numEntries == 0) {
 		    setLastNodeTableDownloadTime();
-		    sendLastReply(id, ACNET_SUCCESS, 0, 0);
+		    sendLastReply(id, ACNET_SUCCESS);
 		    return;
 		} else if (numEntries <= 256) {
 		    uint32_t const* const addr = (uint32_t*) (data + 1);
@@ -214,7 +214,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 		    if (((dataSize - 1) / 2) == numEntries * 2) {
 			uint32_t const* const name = (uint32_t*) (addr + numEntries);
 
-			sendLastReply(id, ACNET_SUCCESS, 0, 0);
+			sendLastReply(id, ACNET_SUCCESS);
 			for (int ii = 0; ii < numEntries; ++ii)
 			    updateAddr(trunknode_t((trunk_t) (trunkIndex + ACNET_MIN_TRUNK),
 						   (node_t) ii),
@@ -224,7 +224,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 		    } else if (((dataSize - 1) / 2) == numEntries) {
 			// Handle the older apps that only send ip addresses
 
-			sendLastReply(id, ACNET_SUCCESS, 0, 0);
+			sendLastReply(id, ACNET_SUCCESS);
 			for (int ii = 0; ii < numEntries; ++ii)
 			    updateAddr(trunknode_t((trunk_t) (trunkIndex + ACNET_MIN_TRUNK),
 						   (node_t) ii),
@@ -234,7 +234,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 		}
 	    }
 	}
-	sendLastReply(id, ACNET_LEVEL2, 0, 0);
+	sendLastReply(id, ACNET_LEVEL2);
     } else {
 	if (subType & SINGLE_FLG) {
 	    if (dataSize >= 1 && atohs(data[0]) < 256) {
@@ -245,7 +245,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 		addr = sa ? sa->sin_addr.s_addr : 0;
 		sendLastReply(id, ACNET_SUCCESS, &addr, sizeof(addr));
 	    } else
-		sendLastReply(id, ACNET_LEVEL2, 0, 0);
+		sendLastReply(id, ACNET_LEVEL2);
 	} else {
 	    uint32_t addr[256];
 
@@ -257,7 +257,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 		}
 		sendLastReply(id, ACNET_SUCCESS, addr, sizeof(addr));
 	    } else
-		sendLastReply(id, ACNET_LEVEL2, 0, 0);
+		sendLastReply(id, ACNET_LEVEL2);
 	}
     }
 }
@@ -280,7 +280,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 
 	sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
     } else
-	sendLastReply(id, ACNET_LEVEL2, 0, 0);
+	sendLastReply(id, ACNET_LEVEL2);
 }
 
 bool AcnetTask::sendMessageToClients(AcnetClientMessage* msg) const
@@ -372,7 +372,7 @@ void AcnetTask::debugHandler(rpyid_t id, uint8_t subType, uint16_t const* const 
 	break;
     }
 
-    sendLastReply(id, status, 0, 0);
+    sendLastReply(id, status);
 }
 
 void AcnetTask::activeReplies(rpyid_t id, uint8_t subType, uint16_t const* const data, uint16_t dataLen)
@@ -435,11 +435,11 @@ void AcnetTask::requestReport(rpyid_t id)
     if (now().tv_sec - lastReport > 60) {
 	lastReport = now().tv_sec;
 	generateReport();
-	sendLastReply(id, ACNET_SUCCESS, 0, 0);
+	sendLastReply(id, ACNET_SUCCESS);
     } else
-	sendLastReply(id, ACNET_BUSY, 0, 0);
+	sendLastReply(id, ACNET_BUSY);
 #else
-    sendLastReply(id, ACNET_LEVEL2, 0, 0);
+    sendLastReply(id, ACNET_LEVEL2);
 #endif
 }
 

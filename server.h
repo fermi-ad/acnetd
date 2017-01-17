@@ -1070,8 +1070,19 @@ class InternalTask : public TaskInfo {
     char const* propName(size_t) const { return 0; }
     std::string propVal(size_t) const { return ""; }
 
-    void sendReply(rpyid_t, status_t, void const* = 0, uint16_t = 0);
-    void sendLastReply(rpyid_t, status_t, void const* = 0, uint16_t = 0);
+    void sendReply(rpyid_t, status_t, void const*, uint16_t);
+
+    void sendReply(rpyid_t rid, status_t s)
+    {
+	sendReply(rid, s, 0, 0);
+    }
+
+    void sendLastReply(rpyid_t, status_t, void const*, uint16_t);
+
+    void sendLastReply(rpyid_t rid, status_t s)
+    {
+	sendLastReply(rid, s, 0, 0);
+    }
 };
 
 // AcnetTask
