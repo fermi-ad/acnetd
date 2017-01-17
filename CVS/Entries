@@ -4,7 +4,6 @@
 /idpool.h/1.15/Thu Jun 25 18:16:49 2015//
 /inttask.cpp/1.1/Thu Jan 12 22:18:13 2017//
 /ipaddr.cpp/1.37/Thu Jan 12 22:18:13 2017//
-/main.cpp/1.157/Thu Jan 12 22:18:13 2017//
 /network.cpp/1.41/Thu Jun 25 18:16:49 2015//
 /node.cpp/1.5/Thu Jun 25 18:16:49 2015//
 /options.opt/1.1/Fri Oct 27 19:59:33 2006//
@@ -12,7 +11,6 @@
 /rawhandler.cpp/1.8/Thu Jan 12 22:18:13 2017//
 /regression.cpp/1.11/Thu Jun 25 18:16:49 2015//
 /reqinfo.cpp/1.48/Thu Jun 25 18:16:49 2015//
-/rpyinfo.cpp/1.62/Thu Nov  3 15:17:02 2016//
 /tcpclient.cpp/1.17/Thu Jan 12 22:18:13 2017//
 /wshandler.cpp/1.7/Thu Jan 12 22:18:13 2017//
 /xfer.dat/1.1/Fri Oct 27 20:06:59 2006//
@@ -23,7 +21,10 @@
 /taskinfo.cpp/1.66/Fri Jan 13 16:21:58 2017//
 /taskpool.cpp/1.11/Fri Jan 13 16:21:58 2017//
 /mcast.cpp/1.2/Fri Jan 13 16:23:37 2017//
-/.cvsignore/1.5/Fri Jan 13 22:16:01 2017//
-/exttask.cpp/1.4/Fri Jan 13 22:14:18 2017//
-/server.h/1.114/Fri Jan 13 22:16:08 2017//
+/.cvsignore/1.5/Tue Jan 17 14:57:24 2017//
+/exttask.cpp/1.4/Tue Jan 17 14:09:57 2017//
+/main.cpp/1.157/Tue Jan 17 14:36:38 2017//
+/rpyinfo.cpp/1.62/Tue Jan 17 14:57:24 2017//
+/server.h/1.115/Tue Jan 17 14:57:39 2017//
+/trunknode.h/1.1/Tue Jan 17 14:57:39 2017//
 D
