@@ -352,13 +352,14 @@ struct CommandHeader {
     uint32_t clientName;
     uint32_t virtualNodeName;
 
-    CommandHeader(CommandList Cmd) : cmd(htons(Cmd)), clientName(0),
-				     virtualNodeName(0) { }
-
  private:
     CommandHeader();
     CommandHeader(CommandHeader const&);
     CommandHeader& operator=(CommandHeader const&);
+
+ public:
+    CommandHeader(CommandList Cmd) : cmd(htons(Cmd)), clientName(0),
+				     virtualNodeName(0) { }
 } __attribute__((packed));
 
 template<CommandList Cmd>
@@ -1058,7 +1059,6 @@ class LocalTask : public ExternalTask {
     bool receiving;
 
     LocalTask();
-    LocalTask& operator=(LocalTask const&);
 
  protected:
     void handleReceiveRequests();
@@ -1082,7 +1082,6 @@ class RemoteTask : public ExternalTask {
     uint32_t remoteAddr;
 
     RemoteTask();
-    RemoteTask& operator=(LocalTask const&);
 
  public:
     RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
@@ -1106,7 +1105,6 @@ class MulticastTask : public ExternalTask {
     uint32_t mcAddr;
 
     MulticastTask();
-    MulticastTask& operator=(MulticastTask const&);
 
  public:
     MulticastTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
