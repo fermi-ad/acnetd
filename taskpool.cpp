@@ -42,8 +42,8 @@ void TaskPool::removeInactiveTasks()
         removeTask(tasks_[ii]);
 
     // Then delete all removed TaskInfo objects and clear the removed container
-    
-    for (TaskList::iterator iter = removed.begin(); iter != removed.end(); iter++)
+
+    for (auto iter = removed.begin(); iter != removed.end(); iter++)
 	delete *iter;
 
     removed.clear();
@@ -105,7 +105,7 @@ TaskRangeIterator TaskPool::tasks(taskhandle_t th) const
 
 bool TaskPool::taskExists(taskhandle_t name) const
 {
-    TaskRangeIterator ii = active.equal_range(name);
+    auto const ii = active.equal_range(name);
 
     return ii.first != ii.second;
 }
@@ -114,7 +114,7 @@ bool TaskPool::taskExists(taskhandle_t name) const
 
 TaskInfo* TaskPool::getTask(taskhandle_t th, uint16_t cmdPort) const
 {
-    TaskRangeIterator ii = active.equal_range(th);
+    auto ii = active.equal_range(th);
 
     while (ii.first != ii.second) {
 	ExternalTask const* const o = dynamic_cast<ExternalTask const*>(ii.first->second);
@@ -129,7 +129,7 @@ TaskInfo* TaskPool::getTask(taskhandle_t th, uint16_t cmdPort) const
 
 bool TaskPool::isPromiscuous(taskhandle_t name) const
 {
-    TaskRangeIterator ii = tasks(name);
+    auto ii = tasks(name);
 
     if (ii.first != ii.second) {
 	TaskInfo *task = ii.first->second;
@@ -421,8 +421,7 @@ void TaskPool::removeOnlyThisTask(TaskInfo* const task, status_t status, bool se
 
     // Find and remove it from the active map.
 
-    std::pair<TaskHandleMap::iterator, TaskHandleMap::iterator> ii =
-	active.equal_range(task->handle());
+    auto ii = active.equal_range(task->handle());
 
     while (ii.first != ii.second)
 	if (ii.first->second->equals(task)) {

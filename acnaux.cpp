@@ -62,7 +62,7 @@ void AcnetTask::taskIdHandler(rpyid_t id, uint16_t const* const data, uint16_t d
 	nodename_t tmp;
 	taskhandle_t taskName(atohl(*(uint32_t*) data));
 
-	TaskRangeIterator const ii = taskPool().tasks(taskName);
+	auto const ii = taskPool().tasks(taskName);
 
 	if (ii.first != ii.second) {
 	    uint16_t const rpy = htoas(ii.first->second->id());
@@ -286,7 +286,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 bool AcnetTask::sendMessageToClients(AcnetClientMessage* msg) const
 {
     bool foundOne = false;
-    TaskRangeIterator ii = taskPool().tasks(taskhandle_t(msg->task));
+    auto ii = taskPool().tasks(taskhandle_t(msg->task));
 
     while (ii.first != ii.second) {
 	if (ii.first->second->sendMessageToClient(msg))

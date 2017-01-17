@@ -326,7 +326,7 @@ static void handleAcnetUsm(TaskPool *taskPool, AcnetHeader const& hdr)
     // We have a regular USM. We look up the destination task and, if it
     // is listening, deliver the packet to it.
 
-    TaskRangeIterator ii = taskPool->tasks(hdr.svrTaskName());
+    auto ii = taskPool->tasks(hdr.svrTaskName());
 
     while (ii.first != ii.second) {
 	TaskInfo * const task = ii.first->second;
@@ -416,7 +416,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 {
     sockaddr_in const* const in = getAddr(hdr.server());
     bool const isMulticast = in && IN_MULTICAST(htonl(in->sin_addr.s_addr));
-    TaskRangeIterator ii = taskPool->tasks(hdr.svrTaskName());
+    auto ii = taskPool->tasks(hdr.svrTaskName());
 
     // If the request is a multicast request, then we don't want to send back
     // a ACNET_NOTASK because other multicast recipients may have the
