@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <queue>
 #include "server.h"
 
 // Local types
@@ -65,6 +66,33 @@ class DataOut {
     trunknode_t getTarget() const { return tgt; }
     size_t getPacketSize() const { return total; }
     uint8_t const* getPacketData() const { return data; }
+};
+
+typedef std::queue<void*> BufferQueue;
+
+template <class T>
+class QueueAdaptor : protected BufferQueue {
+ public:
+    bool empty() const { return BufferQueue::empty(); }
+    size_type size() const { return BufferQueue::size(); }
+
+    T* peek() { return empty() ? 0 : reinterpret_cast<T*>(front()); }
+
+    T* pop()
+    {
+	if (!empty()) {
+	    T* const ptr = reinterpret_cast<T*>(front());
+
+	    BufferQueue::pop();
+	    return ptr;
+	}
+	return 0;
+    }
+
+    void push(T* ptr)
+    {
+	BufferQueue::push(ptr);
+    }
 };
 
 typedef QueueAdaptor< DataOut > DataQueue;
