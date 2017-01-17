@@ -118,7 +118,7 @@ ${ACNETD} : ${ACNETD_OBJS}
 ${VALIDATOR} : ${VALIDATOR_OBJS}
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
 
-${ACNETD_OBJS} : server.h idpool.h
+${ACNETD_OBJS} : server.h node.h idpool.h
 
 .PHONY : clean
 
