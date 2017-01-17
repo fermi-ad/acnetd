@@ -653,7 +653,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 
 		if (req->task().sendDataToClient(&hdr)) {
 		    if (!A || (!B && C))
-			taskPool->reqPool.cancelReqId(msgId, !A && (!C || (B && C)));
+			taskPool->reqPool.cancelReqId(msgId, !A && (!C || B));
 		} else {
 		    syslog(LOG_WARNING, "Trouble communicating with %s, shutting "
 			   "down request 0x%04x", rtoa(req->task().handle().raw()),
