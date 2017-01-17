@@ -1,8 +1,6 @@
-#include <time.h>
 #include <poll.h>
 #include <unistd.h>
 #include <syslog.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -104,9 +102,6 @@ typedef uint8_t	node_t;
 typedef struct {
     uint16_t t[3];
 } __attribute__((packed)) time48_t;
-
-timeval const& now();
-timeval operator+(timeval const&, unsigned);
 
 class status_t {
     int16_t s;
@@ -658,30 +653,7 @@ struct AcnetRpyList {
     rpyid_t ids[N_RPYID];
 };
 
-class Node {
-    Node* next_;
-    Node* prev_;
-
- protected:
-    void insertBefore(Node*);
-
- public:
-    Node();
-    virtual ~Node();
-
-    Node* next() const { return next_; }
-    Node* prev() const { return prev_; }
-    void detach();
-    virtual void update(Node*);
-};
-
-struct TimeSensitive : public Node {
-    timeval lastUpdate;
-
-    TimeSensitive();
-    void update(Node*);
-    virtual timeval expiration() const = 0;
-};
+#include "timesensitive.h"
 
 class RequestPool;
 
@@ -1383,7 +1355,6 @@ bool networkInit(uint16_t);
 void networkTerm();
 DataOut* partialBuffer(trunknode_t);
 void generateKillerMessages();
-bool operator<=(timeval const&, timeval const&);
 ssize_t readNextPacket(void *, size_t, sockaddr_in&);
 int sendDataToNetwork(AcnetHeader const&, void const*, size_t);
 void sendErrorToNetwork(AcnetHeader const&, status_t);

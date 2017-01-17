@@ -40,7 +40,7 @@ THIS_ARCH:=	$(shell uname -p)
 ACNETD=		acnetd
 ACNETD_OBJS=	main.o taskinfo.o inttask.o exttask.o mctask.o lcltask.o remtask.o \
 		taskpool.o ipaddr.o network.o acnaux.o reqinfo.o rpyinfo.o \
-		mcast.o global.o rad50.o node.o 
+		mcast.o global.o rad50.o node.o timesensitive.o
 		
 ifdef TCP_CLIENTS
 ACNETD_OBJS+=	tcpclient.o rawhandler.o wshandler.o
@@ -118,7 +118,7 @@ ${ACNETD} : ${ACNETD_OBJS}
 ${VALIDATOR} : ${VALIDATOR_OBJS}
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
 
-${ACNETD_OBJS} : server.h idpool.h
+${ACNETD_OBJS} : server.h node.h timesensitive.h idpool.h
 
 .PHONY : clean
 
