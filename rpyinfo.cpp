@@ -5,6 +5,11 @@
 #endif
 #include "server.h"
 
+static inline uint32_t unique_node_key(trunknode_t n, uint16_t m)
+{
+    return (uint32_t(n.raw()) << 16) | uint32_t(m);
+}
+
 rpyid_t RpyInfo::id() const
 {
     return task().taskPool().rpyPool.idPool.id(this); 
