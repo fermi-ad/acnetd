@@ -35,7 +35,7 @@ std::string MulticastTask::propVal(size_t ii) const
 	return ExternalTask::propVal(ii);
 
     if (ii == (ExternalTask::totalProp())) {
-	ostringstream os;
+	std::ostringstream os;
 
 	os << (mcAddr >> 24) << "." << (int) ((uint8_t) (mcAddr >> 16)) << "." <<
 		(int) ((uint8_t) (mcAddr >> 8)) << "." << (int) ((uint8_t) mcAddr);

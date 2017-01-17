@@ -28,7 +28,7 @@ std::string RemoteTask::propVal(size_t ii) const
 	return ExternalTask::propVal(ii);
 
     if (ii == (ExternalTask::totalProp())) {
-	ostringstream os;
+	std::ostringstream os;
 
 	os << (remoteAddr >> 24) << "." << (int) ((uint8_t) (remoteAddr >> 16)) << "." <<
 		(int) ((uint8_t) (remoteAddr >> 8)) << "." << (int) ((uint8_t) remoteAddr);

@@ -473,7 +473,7 @@ char const* ExternalTask::propName(size_t idx) const
 
 std::string ExternalTask::propVal(size_t idx) const
 {
-    ostringstream os;
+    std::ostringstream os;
 
     switch (idx) {
      case 0:
