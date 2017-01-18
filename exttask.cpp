@@ -155,11 +155,14 @@ void ExternalTask::handleSend(SendCommand const *cmd, size_t const len)
     // Now route the packet outside the box.
 
     if (len >= sizeof(SendCommand) && len <= INTERNAL_ACNET_USER_PACKET_SIZE + sizeof(SendCommand)) {
-	trunknode_t const node(cmd->addr ? trunknode_t(ntohs(cmd->addr)) : taskPool().node());
+	trunknode_t node = cmd->addr();
+
+	if (node.isBlank())
+	    node = taskPool().node();
 
 	if (getAddr(node)) {
-	    sendUsmToNetwork(node, taskhandle_t(ntohl(cmd->taskName)), taskPool().nodeName(),
-			     id(), cmd->msg, len - sizeof(SendCommand));
+	    sendUsmToNetwork(node, cmd->task(), taskPool().nodeName(),
+			     id(), cmd->data(), len - sizeof(SendCommand));
 	    ++statUsmXmt;
 	    ++taskPool().statUsmXmt;
 	} else
@@ -191,7 +194,10 @@ void ExternalTask::handleSendRequest(SendRequestCommand const *cmd, size_t const
     // message cannot be bigger than the max payload size plus the command header.)
 
     if (len >= sizeof(SendRequestCommand) && len <= INTERNAL_ACNET_USER_PACKET_SIZE + sizeof(SendRequestCommand)) {
-	trunknode_t const node(cmd->addr ? trunknode_t(ntohs(cmd->addr)) : taskPool().node());
+	trunknode_t node = cmd->addr();
+
+	if (node.isBlank())
+	    node = taskPool().node();
 
 	if (getAddr(node)) {
 	    try {
@@ -199,13 +205,13 @@ void ExternalTask::handleSendRequest(SendRequestCommand const *cmd, size_t const
 
 		// Try to allocate a new request ID. If we're successful, send the data to the remote machine.
 
-		ReqInfo* const req = reqPool.alloc(this, taskhandle_t(ntohl(cmd->task)), taskPool().node(), node, ntohs(cmd->flags), REQUEST_TIMEOUT * 1000u);
+		ReqInfo* const req = reqPool.alloc(this, cmd->task(), taskPool().node(), node, cmd->flags(), REQUEST_TIMEOUT * 1000u);
 		size_t const msgLen = len - sizeof(SendRequestCommand);
-		AcnetHeader const hdr(ACNET_FLG_REQ | ((ntohs(cmd->flags) & REQ_M_MULTRPY) ? ACNET_FLG_MLT : 0), ACNET_SUCCESS,
-				      node, taskPool().node(), taskhandle_t(ntohl(cmd->task)), id(), req->id(),
+		AcnetHeader const hdr(ACNET_FLG_REQ | ((cmd->flags() & REQ_M_MULTRPY) ? ACNET_FLG_MLT : 0), ACNET_SUCCESS,
+				      node, taskPool().node(), cmd->task(), id(), req->id(),
 				      sizeof(AcnetHeader) + MSG_LENGTH(msgLen));
 
-		sendDataToNetwork(hdr, cmd->data, msgLen);
+		sendDataToNetwork(hdr, cmd->data(), msgLen);
 		++statReqXmt;
 		++taskPool().statReqXmt;
 		ack.reqid = htons(req->id());
@@ -222,15 +228,18 @@ void ExternalTask::handleSendRequest(SendRequestCommand const *cmd, size_t const
 	taskPool().removeTask(this);
 }
 
-void ExternalTask::handleSendRequestWithTmo(SendRequestWithTmoCommand const *cmd, size_t const len)
+void ExternalTask::handleSendRequestWithTimeout(SendRequestWithTimeoutCommand const *cmd, size_t const len)
 {
     AckSendRequest ack;
 
     // In order for the message to be sent, the payload must not be bigger than INTERNAL_ACNET_USER_PACKET (which means the
     // message cannot be bigger than the max payload size plus the command header.)
 
-    if (len >= sizeof(SendRequestWithTmoCommand) && len <= INTERNAL_ACNET_USER_PACKET_SIZE + sizeof(SendRequestWithTmoCommand)) {
-	trunknode_t const node(cmd->addr ? trunknode_t(ntohs(cmd->addr)) : taskPool().node());
+    if (len >= sizeof(SendRequestWithTimeoutCommand) && len <= INTERNAL_ACNET_USER_PACKET_SIZE + sizeof(SendRequestWithTimeoutCommand)) {
+	trunknode_t node = cmd->addr();
+
+	if (node.isBlank())
+	    node = taskPool().node();
 
 	if (getAddr(node)) {
 	    try {
@@ -238,13 +247,13 @@ void ExternalTask::handleSendRequestWithTmo(SendRequestWithTmoCommand const *cmd
 
 		// Try to allocate a new request ID. If we're successful, send the data to the remote machine.
 
-		ReqInfo* const req = reqPool.alloc(this, taskhandle_t(ntohl(cmd->task)), taskPool().node(), node, ntohs(cmd->flags), ntohl(cmd->tmo));
-		size_t const msgLen = len - sizeof(SendRequestWithTmoCommand);
-		AcnetHeader const hdr(ACNET_FLG_REQ | ((ntohs(cmd->flags) & REQ_M_MULTRPY) ? ACNET_FLG_MLT : 0), ACNET_SUCCESS,
-				      node, taskPool().node(), taskhandle_t(ntohl(cmd->task)), id(), req->id(),
+		ReqInfo* const req = reqPool.alloc(this, cmd->task(), taskPool().node(), node, cmd->flags(), cmd->timeout());
+		size_t const msgLen = len - sizeof(SendRequestWithTimeoutCommand);
+		AcnetHeader const hdr(ACNET_FLG_REQ | ((cmd->flags() & REQ_M_MULTRPY) ? ACNET_FLG_MLT : 0), ACNET_SUCCESS,
+				      node, taskPool().node(), cmd->task(), id(), req->id(),
 				      sizeof(AcnetHeader) + MSG_LENGTH(msgLen));
 
-		sendDataToNetwork(hdr, cmd->data, msgLen);
+		sendDataToNetwork(hdr, cmd->data(), msgLen);
 		++statReqXmt;
 		++taskPool().statReqXmt;
 		ack.reqid = htons(req->id());
@@ -269,8 +278,8 @@ void ExternalTask::handleSendReply(SendReplyCommand const *cmd, size_t const len
     // message cannot be bigger than the max payload size plus the command header.)
 
     if (len >= sizeof(SendReplyCommand) && len <= INTERNAL_ACNET_USER_PACKET_SIZE + sizeof(SendReplyCommand)) {
-	status_t const tmp = taskPool().rpyPool.sendReplyToNetwork(this, ntohs(cmd->rpyid), status_t(ntohs(cmd->status)), cmd->data,
-								  len - sizeof(SendReplyCommand), ntohs(cmd->flags) & RPY_M_ENDMULT);
+	status_t const tmp = taskPool().rpyPool.sendReplyToNetwork(this, cmd->rpyid(), cmd->status(), cmd->data(),
+								  len - sizeof(SendReplyCommand), cmd->flags() & RPY_M_ENDMULT);
 
 	ack.setStatus(tmp);
     } else
@@ -287,7 +296,7 @@ void ExternalTask::handleIgnoreRequest(IgnoreRequestCommand const *cmd)
     if (!acceptsRequests())
 	ack.setStatus(ACNET_IVM);
     else
-	taskPool().rpyPool.endRpyId(ntohs(cmd->rpyid));
+	taskPool().rpyPool.endRpyId(cmd->rpyid());
 
     if (!sendAckToClient(&ack, sizeof(ack)))
 	taskPool().removeTask(this);
@@ -300,7 +309,7 @@ void ExternalTask::handleRequestAck(RequestAckCommand const *cmd)
     if (!acceptsRequests())
 	ack.setStatus(ACNET_IVM);
     else {
-	RpyInfo* const rep = taskPool().rpyPool.rpyInfo(ntohs(cmd->rpyid));
+	RpyInfo* const rep = taskPool().rpyPool.rpyInfo(cmd->rpyid());
 
 	if (rep && rep->task().equals(this)) {
 	    if (rep->beenAcked() || !decrementPendingRequests())
@@ -308,7 +317,7 @@ void ExternalTask::handleRequestAck(RequestAckCommand const *cmd)
 	    rep->ackIt();
 	} else {
 #ifdef DEBUG
-	syslog(LOG_INFO, "ACK REQUEST: Reply id = 0x%04x -- ERROR! Client tried to ACK nonexistent request.", cmd->rpyid);
+	syslog(LOG_INFO, "ACK REQUEST: Reply id = 0x%04x -- ERROR! Client tried to ACK nonexistent request.", cmd->rpyid());
 #endif
 	    ack.setStatus(ACNET_NSR);
 	}
@@ -325,10 +334,10 @@ void ExternalTask::handleCancel(CancelCommand const *cmd)
     // Look up the req ID in our table. If the request exists, then we can check to see if the calling task owns the
     // request. If it does, we cancel the requst.
 
-    ReqInfo const* const req = taskPool().reqPool.entry(ntohs(cmd->reqid));
+    ReqInfo const* const req = taskPool().reqPool.entry(cmd->reqid());
 
     if (req && req->task().equals(this)) {
-	taskPool().reqPool.cancelReqId(ntohs(cmd->reqid));
+	taskPool().reqPool.cancelReqId(cmd->reqid());
 	ack.setStatus(ACNET_SUCCESS);
     } else
 	ack.setStatus(ACNET_NSR);
@@ -368,7 +377,7 @@ void ExternalTask::handleRenameTask(RenameTaskCommand const *cmd)
 {
     AckSendReply ack;
 
-    if (!taskPool().rename(this, taskhandle_t(ntohl(cmd->newName))))
+    if (!taskPool().rename(this, cmd->newName()))
 	ack.setStatus(ACNET_NAME_IN_USE);
 
     if (!sendAckToClient(&ack, sizeof(ack)))
@@ -377,8 +386,8 @@ void ExternalTask::handleRenameTask(RenameTaskCommand const *cmd)
 
 void ExternalTask::handleUnknownCommand(CommandHeader const *cmd, size_t const len)
 {
-    syslog(LOG_WARNING, "task %s sent unknown command: %d length:%ld",
-	    rtoa(handle().raw()), ntohs(cmd->cmd), len);
+    syslog(LOG_WARNING, "task %s sent unknown command: %04x length:%ld",
+	    rtoa(handle().raw()), cmd->cmd(), len);
 
     if (!sendErrorToClient(ACNET_BUG))
 	taskPool().removeTask(this);
@@ -388,7 +397,7 @@ void ExternalTask::handleClientCommand(CommandHeader const* const cmd, size_t co
  {
      commandReceived();
 
-     switch (ntohs(cmd->cmd)) {
+     switch (cmd->cmd()) {
       case CommandList::cmdKeepAlive:
          handleKeepAlive();
          break;
@@ -417,8 +426,8 @@ void ExternalTask::handleClientCommand(CommandHeader const* const cmd, size_t co
          handleSendRequest((SendRequestCommand const*) cmd, len);
          break;
 
-      case CommandList::cmdSendRequestWithTmo:
-         handleSendRequestWithTmo((SendRequestWithTmoCommand const*) cmd, len);
+      case CommandList::cmdSendRequestWithTimeout:
+         handleSendRequestWithTimeout((SendRequestWithTimeoutCommand const*) cmd, len);
          break;
 
       case CommandList::cmdSendReply:

@@ -729,10 +729,10 @@ static TaskPool* getTaskPool(trunknode_t node)
 
 		if (taskPool) {
 		    taskPoolMap.insert(TaskPoolMap::value_type(name, taskPool));
-		    syslog(LOG_DEBUG, "created TaskPool for node %s", rtoa(name.raw()));
+		    syslog(LOG_DEBUG, "created TaskPool for node %s", name.str());
 		    return taskPool;
 		} else
-		    syslog(LOG_ERR, "unable to allocate TaskPool for node %s", rtoa(name.raw()));
+		    syslog(LOG_ERR, "unable to allocate TaskPool for node %s", name.str());
 	    }
 	} else
 	    return (*ii).second;
@@ -944,13 +944,13 @@ static bool handleClientCommand()
 	    // Check for adding a node to the node table since it doesn't
 	    // require a TaskPool
 
-	    if (ntohs(CommandList::cmdAddNode) == cmdHdr->cmd) {
+	    if (CommandList::cmdAddNode == cmdHdr->cmd()) {
 		Ack ack;
-		AddNodeCommand const* const cmd = (AddNodeCommand const*) cmdHdr;
+		AddNodeCommand const* const cmd = static_cast<AddNodeCommand const*>(cmdHdr);
 
-		trunknode_t const node(ntohs(cmd->addr));
-		nodename_t const name(ntohl(cmd->nodeName));
-		uint32_t const addr = ntohl(cmd->ipAddr);
+		trunknode_t const node = cmd->addr();
+		nodename_t const name = cmd->nodeName();
+		uint32_t const addr = cmd->ipAddr();
 
 		if (node.isBlank() && name.isBlank() && !addr)
 		    setLastNodeTableDownloadTime();
@@ -962,11 +962,11 @@ static bool handleClientCommand()
 
 		// All commands at this point need a valid TaskPool
 
-		TaskPool* const taskPool = getTaskPool(nodename_t(ntohl(cmdHdr->virtualNodeName)));
+		TaskPool* const taskPool = getTaskPool(cmdHdr->virtualNodeName());
 
 		if (!taskPool)
 		    sendClientError(in, ACNET_NO_NODE);
-		else if (ntohs(CommandList::cmdConnect) == cmdHdr->cmd) {
+		else if (CommandList::cmdConnect == cmdHdr->cmd()) {
 
 		    // Make sure the packet size is correct. (TP-3)
 
@@ -975,7 +975,7 @@ static bool handleClientCommand()
 		    else
 			taskPool->handleConnect(in, static_cast<ConnectCommand const*>(cmdHdr), recvLen);
 
-		} else if (ntohs(CommandList::cmdNameLookup) == cmdHdr->cmd) {
+		} else if (CommandList::cmdNameLookup == cmdHdr->cmd()) {
 
 		    // Name Lookup commands don't require a valid connection
 		    // either. Make sure the packet size is correct.
@@ -987,7 +987,7 @@ static bool handleClientCommand()
 			trunknode_t addr;
 			NameLookupCommand const* const cmd = static_cast<NameLookupCommand const*>(cmdHdr);
 
-			ack.setStatus(nameLookup(nodename_t(ntohl(cmd->name)), addr) ?
+			ack.setStatus(nameLookup(cmd->name(), addr) ?
 				      (ack.node = addr.node(), ack.trunk = addr.trunk(), ACNET_SUCCESS) : ACNET_NO_NODE);
 
 			(void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
@@ -996,7 +996,7 @@ static bool handleClientCommand()
 
 		// Yet another command that doesn't require a valid connection.
 
-		else if (ntohs(CommandList::cmdNodeLookup) == cmdHdr->cmd) {
+		else if (CommandList::cmdNodeLookup == cmdHdr->cmd()) {
 
 		    // Make sure the packet size is correct.
 
@@ -1005,9 +1005,9 @@ static bool handleClientCommand()
 		    else {
 			AckNodeLookup ack;
 			nodename_t name;
-			NodeLookupCommand const* const cmd = (NodeLookupCommand const*) cmdHdr;
+			NodeLookupCommand const* const cmd = static_cast<NodeLookupCommand const*>(cmdHdr);
 
-			ack.setStatus(nodeLookup(trunknode_t(ntohs(cmd->addr)), name) ?
+			ack.setStatus(nodeLookup(cmd->addr(), name) ?
 				      (ack.name = htonl(name.raw()), ACNET_SUCCESS) : ACNET_NO_NODE);
 			(void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
 		    }
@@ -1015,7 +1015,7 @@ static bool handleClientCommand()
 
 		// Get the local node
 
-		else if (ntohs(CommandList::cmdLocalNode) == cmdHdr->cmd) {
+		else if (CommandList::cmdLocalNode == cmdHdr->cmd()) {
 		    AckNameLookup ack;
 
 		    ack.trunk = taskPool->node().trunk();
@@ -1025,7 +1025,7 @@ static bool handleClientCommand()
 
 		// Get the default node
 
-		else if (ntohs(CommandList::cmdDefaultNode) == cmdHdr->cmd) {
+		else if (CommandList::cmdDefaultNode == cmdHdr->cmd()) {
 		    AckNameLookup ack;
 
 		    ack.trunk = myNode().trunk();
@@ -1039,7 +1039,7 @@ static bool handleClientCommand()
 
 		else {
 		    ExternalTask* const task = dynamic_cast<ExternalTask *>
-				(taskPool->getTask(taskhandle_t(ntohl(cmdHdr->clientName)), ntohs(in.sin_port)));
+					(taskPool->getTask(cmdHdr->clientName(), ntohs(in.sin_port)));
 
 		    if (task)
 			task->handleClientCommand(cmdHdr, recvLen);
