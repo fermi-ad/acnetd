@@ -1,8 +1,8 @@
 #include "server.h"
 
 pid_t InternalTask::pid() const
-{ 
-    return getpid(); 
+{
+    return getpid();
 }
 
 bool InternalTask::equals(TaskInfo const* task) const

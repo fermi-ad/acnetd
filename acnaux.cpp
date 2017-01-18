@@ -461,81 +461,81 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 
 	if (!(size & 1) && size >= 2) {
 	    int8_t const type = (int8_t) atohs(msg[0]) & 0xff;
-	    uint8_t subType = atohs(msg[0]) >> 8; 
+	    uint8_t subType = atohs(msg[0]) >> 8;
 	    uint16_t dataLen = (size - 2) / 2;
 	    uint16_t const* const data = msg + 1;;
 
 	    switch (type) {
-	     case -7:	
-		requestReport(id); 
+	     case -7:
+		requestReport(id);
 		break;
 
-	     case -6: 
-		replyDetail(id, data, dataLen); 
+	     case -6:
+		replyDetail(id, data, dataLen);
 		break;
 
-	     case -5: 
+	     case -5:
 		requestDetail(id, data, dataLen);
 		break;
 
-	     case -4: 
+	     case -4:
 		activeReplies(id, subType, data, dataLen);
 		break;
 
-	     case -3: 
+	     case -3:
 		activeRequests(id, subType, data, dataLen);
 		break;
 
-	     case -2: 
-		debugHandler(id, subType, data, dataLen); 
+	     case -2:
+		debugHandler(id, subType, data, dataLen);
 		break;
 
-	     case -1: 
-		timeHandler(id, subType); 
+	     case -1:
+		timeHandler(id, subType);
 		break;
 
-	     case 0: 
-		pingHandler(id); 
+	     case 0:
+		pingHandler(id);
 		break;
 
-	     case 1: 
-		taskIdHandler(id, data, dataLen); 
+	     case 1:
+		taskIdHandler(id, data, dataLen);
 		break;
 
-	     case 2: 
-		taskNameHandler(id, subType); 
+	     case 2:
+		taskNameHandler(id, subType);
 		break;
 
-	     case 3: 
-		versionHandler(id); 
+	     case 3:
+		versionHandler(id);
 		break;
 
-	     case 4: 
-		tasksHandler(id, subType); 
+	     case 4:
+		tasksHandler(id, subType);
 		break;
 
-	     case 5: 
-		taskResourcesHandler(id); 
+	     case 5:
+		taskResourcesHandler(id);
 		break;
 
-	     case 6: 
-		nodeStatsHandler(id, subType); 
+	     case 6:
+		nodeStatsHandler(id, subType);
 		break;
 
-	     case 7: 
-		tasksStatsHandler(id, subType); 
+	     case 7:
+		tasksStatsHandler(id, subType);
 		break;
 
-	     case 9: 
-		packetCountHandler(id); 
+	     case 9:
+		packetCountHandler(id);
 		break;
 
-	     case 11: 	
+	     case 11:
 		killerMessageHandler(id, subType, data, dataLen);
 		break;
 
-	     case 17: 
-		ipNodeTableHandler(id, subType, data, dataLen); 
+	     case 17:
+		ipNodeTableHandler(id, subType, data, dataLen);
 		break;
 
 	     default:

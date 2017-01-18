@@ -94,7 +94,7 @@ char const* rtoa(uint32_t r, char *s)
 char const* rtoa_strip(uint32_t r, char *s)
 {
     static char buf[RAD50_ASCII_COUNT + 1];
-     
+
     if (s == 0)
 	s = buf;
 

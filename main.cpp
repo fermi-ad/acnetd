@@ -250,7 +250,7 @@ struct CmdLineArgs {
 
 bool rejectTask(taskhandle_t const task)
 {
-    return cmdLineArgs.taskReject.find(task) != cmdLineArgs.taskReject.end();	
+    return cmdLineArgs.taskReject.find(task) != cmdLineArgs.taskReject.end();
 }
 
 void dumpIncomingAcnetPackets(bool const status)

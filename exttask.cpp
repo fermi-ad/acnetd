@@ -377,82 +377,82 @@ void ExternalTask::handleRenameTask(RenameTaskCommand const *cmd)
 
 void ExternalTask::handleUnknownCommand(CommandHeader const *cmd, size_t const len)
 {
-    syslog(LOG_WARNING, "task %s sent unknown command: %d length:%ld", 
+    syslog(LOG_WARNING, "task %s sent unknown command: %d length:%ld",
 	    rtoa(handle().raw()), ntohs(cmd->cmd), len);
 
     if (!sendErrorToClient(ACNET_BUG))
 	taskPool().removeTask(this);
 }
 
-void ExternalTask::handleClientCommand(CommandHeader const* const cmd, size_t const len)	 
- {	 
-     commandReceived();	 
-     
+void ExternalTask::handleClientCommand(CommandHeader const* const cmd, size_t const len)
+ {
+     commandReceived();
+
      switch (ntohs(cmd->cmd)) {
       case CommandList::cmdKeepAlive:
          handleKeepAlive();
          break;
-     
+
       case CommandList::cmdDisconnect:
          handleDisconnect();
          break;
-     
+
       case CommandList::cmdDisconnectSingle:
          handleDisconnectSingle();
          break;
-     
+
       case CommandList::cmdSend:
          handleSend((SendCommand const*) cmd, len);
          break;
-     
+
       case CommandList::cmdReceiveRequests:
          handleReceiveRequests();
-         break;	 
-     
+         break;
+
       case CommandList::cmdBlockRequests:
          handleBlockRequests();
          break;
-     
+
       case CommandList::cmdSendRequest:
          handleSendRequest((SendRequestCommand const*) cmd, len);
          break;
-     
+
       case CommandList::cmdSendRequestWithTmo:
          handleSendRequestWithTmo((SendRequestWithTmoCommand const*) cmd, len);
          break;
-     
+
       case CommandList::cmdSendReply:
          handleSendReply((SendReplyCommand const*) cmd, len);
          break;
-     
+
       case CommandList::cmdIgnoreRequest:
          handleIgnoreRequest((IgnoreRequestCommand const*) cmd);
          break;
-     
+
       case CommandList::cmdRequestAck:
          handleRequestAck((RequestAckCommand const*) cmd);
          break;
-     
+
       case CommandList::cmdCancel:
          handleCancel((CancelCommand const*) cmd);
          break;
-     
+
       case CommandList::cmdTaskPid:
          handleTaskPid();
          break;
-     
+
       case CommandList::cmdGlobalStats:
          handleGlobalStats();
          break;
-     
+
       case CommandList::cmdRenameTask:
          handleRenameTask((RenameTaskCommand const*) cmd);
          break;
-     
+
       default:
 	handleUnknownCommand(cmd, len);
-        break;	 
-    } 
+        break;
+    }
 }
 
 size_t ExternalTask::totalProp() const

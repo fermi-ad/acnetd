@@ -1,20 +1,8 @@
 /depends.opt/1.1/Fri Oct 27 19:59:33 2006//
 /options.opt/1.1/Fri Oct 27 19:59:33 2006//
-/rad50.cpp/1.12/Thu Jun 25 18:16:49 2015//
-/rawhandler.cpp/1.8/Thu Jan 12 22:18:13 2017//
-/tcpclient.cpp/1.17/Thu Jan 12 22:18:13 2017//
 /xfer.dat/1.1/Fri Oct 27 20:06:59 2006//
-/exttask.cpp/1.5/Tue Jan 17 17:35:21 2017//
-/inttask.cpp/1.1/Tue Jan 17 19:57:53 2017//
 /.cvsignore/1.5/Wed Jan 18 21:25:49 2017//
 /Makefile/1.35/Wed Jan 18 18:54:04 2017//
-/acnaux.cpp/1.73/Wed Jan 18 21:25:49 2017//
-/main.cpp/1.160/Wed Jan 18 20:21:25 2017//
-/network.cpp/1.42/Wed Jan 18 20:21:25 2017//
-/reqinfo.cpp/1.49/Wed Jan 18 20:21:25 2017//
-/rpyinfo.cpp/1.64/Wed Jan 18 20:21:25 2017//
-/server.h/1.120/Wed Jan 18 20:21:25 2017//
-/taskpool.cpp/1.13/Wed Jan 18 18:54:04 2017//
 /global.cpp/1.15/Wed Jan 18 21:27:20 2017//
 /idpool.h/1.15/Wed Jan 18 21:27:55 2017//
 /ipaddr.cpp/1.37/Wed Jan 18 21:27:24 2017//
@@ -30,4 +18,16 @@
 /timesensitive.h/1.1/Wed Jan 18 21:28:00 2017//
 /trunknode.h/1.1/Wed Jan 18 21:28:02 2017//
 /wshandler.cpp/1.8/Wed Jan 18 21:27:53 2017//
+/acnaux.cpp/1.74/Wed Jan 18 21:27:16 2017//
+/exttask.cpp/1.6/Wed Jan 18 21:27:18 2017//
+/inttask.cpp/1.2/Wed Jan 18 21:27:22 2017//
+/main.cpp/1.161/Wed Jan 18 21:27:28 2017//
+/network.cpp/1.43/Wed Jan 18 21:27:33 2017//
+/rad50.cpp/1.13/Wed Jan 18 21:27:36 2017//
+/rawhandler.cpp/1.9/Wed Jan 18 21:27:38 2017//
+/reqinfo.cpp/1.50/Wed Jan 18 21:27:43 2017//
+/rpyinfo.cpp/1.65/Wed Jan 18 21:27:45 2017//
+/server.h/1.121/Wed Jan 18 21:27:58 2017//
+/taskpool.cpp/1.14/Wed Jan 18 21:27:48 2017//
+/tcpclient.cpp/1.18/Wed Jan 18 21:27:50 2017//
 D

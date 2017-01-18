@@ -36,7 +36,7 @@ int TaskPool::nextFreeTaskId()
 void TaskPool::removeInactiveTasks()
 {
     // First remove all active tasks that are no longer alive
-    
+
     for (int ii = 0; ii < MAX_TASKS; ii++)
 	if (tasks_[ii] && !tasks_[ii]->stillAlive())
         removeTask(tasks_[ii]);
@@ -51,7 +51,7 @@ void TaskPool::removeInactiveTasks()
 
 size_t TaskPool::activeCount() const
 {
-    size_t count = 0; 
+    size_t count = 0;
 
     for (int ii = 0; ii < MAX_TASKS; ii++)
 	if (tasks_[ii])
@@ -89,7 +89,7 @@ size_t TaskPool::replyCount() const
     for (int ii = 0; ii < MAX_TASKS; ii++)
 	if (tasks_[ii])
 	    total += tasks_[ii]->replyCount();
-    
+
     return total;
 }
 
@@ -173,7 +173,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 
 	    if (!task) {
 		int taskId = nextFreeTaskId();
-		
+
 		if (taskId > 0) {
 		    // Create a new task based on the connection parameters
 
@@ -221,7 +221,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 #endif
 
     // Send ack back to the client
-    
+
     (void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, sizeof(sockaddr_in));
 }
 
@@ -452,7 +452,7 @@ void TaskPool::removeTask(TaskInfo* const task)
 
     if (0 == pid)
 
-	// If the task pid is 0 then only remove the given task 
+	// If the task pid is 0 then only remove the given task
 
 	removeOnlyThisTask(task);
     else {
@@ -505,7 +505,7 @@ void TaskPool::generateTaskReport(std::ostream& os) const
 {
     os << "\t\t<div class=\"section\">\n\t\t<h1>Connected Tasks Report</h1>\n";
 
-    for (int ii = 0; ii < MAX_TASKS; ii++) 
+    for (int ii = 0; ii < MAX_TASKS; ii++)
 	if (tasks_[ii])
 	    tasks_[ii]->report(os);
 
@@ -601,9 +601,9 @@ void TaskPool::generateReport()
 	chmod(file, DEFFILEMODE);
 
 	char command[512];
-	
+
 	strcpy(command, "/usr/sbin/sendmail neswold@fnal.gov kingc@fnal.gov < ");
-	strcat(command, file); 
+	strcat(command, file);
 
 	exit(system(command));
     }

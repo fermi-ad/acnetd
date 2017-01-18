@@ -878,12 +878,12 @@ class TaskInfo : private Noncopyable {
     bool isReceiving() { return acceptsUsm() || acceptsRequests(); }
 
     // Receiving data from network
-    
+
     virtual bool sendDataToClient(AcnetHeader const*) = 0;
     virtual bool sendMessageToClient(AcnetClientMessage*) = 0;
 
-    // Request/reply 
-    
+    // Request/reply
+
     bool addReply(rpyid_t id)			{ return replies.insert(id).second; }
     bool addRequest(reqid_t id)			{ return requests.insert(id).second; }
     size_t requestCount() const			{ return requests.size(); }
@@ -894,7 +894,7 @@ class TaskInfo : private Noncopyable {
     bool testPendingRequestsAndIncrement();
 
     // ACNET report
-    
+
     virtual char const* name() const = 0;
     virtual size_t totalProp() const = 0;
     virtual char const* propName(size_t) const = 0;
@@ -922,7 +922,7 @@ class ExternalTask : public TaskInfo {
     bool checkResult(ssize_t);
 
     // Client command handlers
-    
+
     virtual void handleCancel(CancelCommand const *);
     virtual void handleDisconnect();
     virtual void handleDisconnectSingle();
@@ -1004,7 +1004,7 @@ class RemoteTask : public ExternalTask {
  public:
     RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
     virtual ~RemoteTask() {}
-    
+
     bool acceptsUsm() const { return false; }
     bool acceptsRequests() const { return false; }
 

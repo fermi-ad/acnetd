@@ -116,7 +116,7 @@ bool RawProtocolHandler::handleCommandSocket()
 	    done = true;
 	}
     }
-    
+
     return done;
 }
 

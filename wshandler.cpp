@@ -28,17 +28,17 @@ class decode_iterator
 	return *this;
     }
 
-    decode_iterator& operator*() 
+    decode_iterator& operator*()
     {
 	return *this;
     }
 
-    decode_iterator& operator++() 
+    decode_iterator& operator++()
     {
 	return *this;
     }
 
-    decode_iterator operator++(int) 
+    decode_iterator operator++(int)
     {
 	return *this;
     }
@@ -52,8 +52,8 @@ inline decode_iterator<_Container> decode_inserter(_Container& __x,
 }
 
 WebSocketProtocolHandler::WebSocketProtocolHandler(int sTcp, int sCmd, int sData, nodename_t tcpNode, uint32_t remoteAddr) :
-			    TcpClientProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr), 
-			    payload(MAX_PAYLOAD_SIZE) 
+			    TcpClientProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr),
+			    payload(MAX_PAYLOAD_SIZE)
 {
     payload.clear();
 }
@@ -101,7 +101,7 @@ bool WebSocketProtocolHandler::sendBinaryDataToClient(Pkt2 *pkt2, ssize_t len, u
     syslog(LOG_DEBUG, "send binary to client: %ld", (long) len);
 
     if (len <= 125) {
-	
+
 	// Convert packet (Pkt2) to small header size (Pkt1) and send
 
 	Pkt1 *pkt1 = (Pkt1 *) (((uint8_t *) pkt2) + (sizeof(Pkt2) - sizeof(Pkt1)));
@@ -144,7 +144,7 @@ bool WebSocketProtocolHandler::handleDataSocket()
 	done = true;
     } else
 	done = sendBinaryDataToClient(pkt2, len, ACNETD_DATA);
-    
+
     return done;
 }
 
@@ -154,14 +154,14 @@ bool WebSocketProtocolHandler::handleAcnetCommand(std::vector<uint8_t>& payload)
     uint16_t type;
 
     if (payload.size() >= sizeof(type)) {
-	type = ntohs(*(uint16_t *) payload.data()); 
+	type = ntohs(*(uint16_t *) payload.data());
 	uint16_t len = (uint16_t) payload.size() - sizeof(type);
 
 	if (type == ACNETD_COMMAND && len >= sizeof(CommandHeader))
 	    done = handleClientCommand((CommandHeader *) (payload.data() + sizeof(type)), len);
 	else
 	    done = true;
-    } else 
+    } else
 	done = true;
 
     return done;
@@ -181,14 +181,14 @@ bool WebSocketProtocolHandler::handleClientSocket()
 	    uint8_t buf[MAX_PAYLOAD_SIZE];
 
 	    if (readBytes(buf, len)) {
-		
+
 		// Save next frame of payload
 
 		if (hasMask)
 		    std::copy(buf, buf + len, decode_inserter(payload, mask));
 		else
 		    std::copy(buf, buf + len, std::back_inserter(payload));
-		
+
 		// If final fragment, then send the payload on
 
 		if (hdr[0] & 0x80) {
@@ -260,7 +260,7 @@ bool WebSocketProtocolHandler::handleCommandSocket()
 	done = true;
     } else
 	done = sendBinaryDataToClient(pkt2, len, ACNETD_ACK);
-    
+
     return done;
 }
 
@@ -272,7 +272,7 @@ bool WebSocketProtocolHandler::handleClientPing()
 	syslog(LOG_ERR, "wshandler: error sending ping to client -- %m");
 	return true;
     }
-  
+
     return false;
 }
 
