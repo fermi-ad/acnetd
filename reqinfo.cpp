@@ -4,7 +4,7 @@
 #endif
 #include "server.h"
 
-ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName, 
+ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
 			    trunknode_t lclNode, trunknode_t remNode,
 			    uint16_t flags, uint32_t tmo)
 {
@@ -44,7 +44,7 @@ void RequestPool::release(ReqInfo *req)
 }
 
 reqid_t ReqInfo::id() const
-{ 
+{
     return task().taskPool().reqPool.idPool.id(this);
 }
 
@@ -152,7 +152,7 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	    cancelReqId(req->id(), true);
 
 	    if (failed)
-		task.taskPool().removeTask(&task);	
+		task.taskPool().removeTask(&task);
 	} else
 	    return diffInMs(expiration, now());
     }
@@ -237,12 +237,12 @@ void RequestPool::generateReqReport(std::ostream& os)
     os << "<br>Max active request IDs: " << idPool.maxActiveIdCount() << "<br>";
 
     while (0 != (req = idPool.next(req))) {
-	
+
 	// Buffer up the name of the remote node
 
 	nodename_t tmp;
 	char remNode[128];
-	
+
 	if (!nodeLookup(req->remNode(), tmp))
 	    strcpy(remNode, "");
 	rtoa(tmp.raw(), remNode);

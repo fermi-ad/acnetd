@@ -12,7 +12,7 @@ static inline uint32_t unique_node_key(trunknode_t n, uint16_t m)
 
 rpyid_t RpyInfo::id() const
 {
-    return task().taskPool().rpyPool.idPool.id(this); 
+    return task().taskPool().rpyPool.idPool.id(this);
 }
 
 bool RpyInfo::xmitReply(status_t status, void const* const data,
@@ -24,7 +24,7 @@ bool RpyInfo::xmitReply(status_t status, void const* const data,
     // Log a message so we can keep track.
 
     if (!beenAcked())
-	syslog(LOG_WARNING, "implicitly decremented the pending count for " 
+	syslog(LOG_WARNING, "implicitly decremented the pending count for "
 				"REPLY 0x%04x", id());
 
     AcnetHeader hdr(ACNET_FLG_RPY, status, lclNode(), remNode(), taskName(), taskId(),
@@ -266,9 +266,9 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 
 	    // Tell the local client that this request is cancelled
 
-	    AcnetHeader const hdr(ACNET_FLG_CAN, (status_t) rpy->id(), 
-				    rpy->lclNode(), rpy->remNode(), 
-				    rpy->taskName(), rpy->task().id(), rpy->reqId(), 
+	    AcnetHeader const hdr(ACNET_FLG_CAN, (status_t) rpy->id(),
+				    rpy->lclNode(), rpy->remNode(),
+				    rpy->taskName(), rpy->task().id(), rpy->reqId(),
 				    sizeof(AcnetHeader));
 
 	    (void) rpy->task().sendDataToClient(&hdr);
@@ -391,12 +391,12 @@ void ReplyPool::generateRpyReport(std::ostream& os)
     os << "<br>Max active reply IDs: " << idPool.maxActiveIdCount() << "<br>";
 
     while (0 != (rpy = idPool.next(rpy))) {
-	
+
 	// Buffer up the name of the remote node
 
 	nodename_t tmp;
 	char remNode[128];
-	
+
 	if (!nodeLookup(rpy->remNode(), tmp))
 	    strcpy(remNode, "");
 	rtoa(tmp.raw(), remNode);

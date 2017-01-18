@@ -10,9 +10,9 @@
 #define RECEIVE_BUF_SIZE                (128 * 1024)
 
 
-TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData, 
+TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData,
 						    nodename_t tcpNode, uint32_t remoteAddr) :
-						    sTcp(sTcp), sCmd(sCmd), sData(sData), 
+						    sTcp(sTcp), sCmd(sCmd), sData(sData),
 						    tcpNode(tcpNode), remoteAddr(remoteAddr)
 {
 }
@@ -248,7 +248,7 @@ static void sendAcceptKey(int sTcp, const char *key)
     SHA1_Update(&ctx, key, strlen(key));
     SHA1_Update(&ctx, magicKey, strlen(magicKey));
     SHA1_Final(md, &ctx);
-    
+
     char acceptKey[4 * ((SHA_DIGEST_LENGTH + 2) / 3)];
 
     for (size_t ii = 0, jj = 0; ii < SHA_DIGEST_LENGTH;) {
@@ -295,7 +295,7 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
 		sendStr(sTcp, "Connection: Upgrade\r\n");
 		sendStr(sTcp, "Sec-WebSocket-Accept: ");
 		sendAcceptKey(sTcp, cp);
-		sendStr(sTcp, "\r\n"); 
+		sendStr(sTcp, "\r\n");
 		sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
 		handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
 		syslog(LOG_DEBUG, "detected WebSocket protocol");
@@ -314,7 +314,7 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
     // write to the client TCP socket
 
     signal(SIGPIPE, SIG_IGN);
-    
+
     // Setup the client TCP socket
 
     int v = 1;

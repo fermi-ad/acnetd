@@ -372,7 +372,7 @@ bool sendPendingPackets()
 		    return false;
 		else {
 		    uint32_t ip = ntohl(((sockaddr_in *) addr)->sin_addr.s_addr);
-		    syslog(LOG_WARNING, "couldn't send packet to socket -- %m (%d.%d.%d.%d)", 
+		    syslog(LOG_WARNING, "couldn't send packet to socket -- %m (%d.%d.%d.%d)",
 				ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip);
 		}
 	    }
@@ -417,7 +417,7 @@ void sendUsmToNetwork(trunknode_t tgtNode, taskhandle_t tgtTask, nodename_t from
     trunknode_t fromNode;
 
     nameLookup(fromNodeName, fromNode);
-     
+
     if (getAddr(tgtNode) != 0) {
 	AcnetHeader const ah(ACNET_FLG_USM, ACNET_SUCCESS, tgtNode, fromNode, tgtTask, client, 0, MSG_LENGTH(len) + sizeof(AcnetHeader));
 
