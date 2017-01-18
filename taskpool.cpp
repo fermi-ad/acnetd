@@ -146,10 +146,9 @@ bool TaskPool::isPromiscuous(taskhandle_t name) const
 void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const cmd, size_t len)
 {
     AckConnect ack;
-    taskhandle_t clientName(ntohl(cmd->clientName));
-    nodename_t vNodeName(ntohl(cmd->virtualNodeName));
+    taskhandle_t clientName = cmd->clientName();
     uint16_t cmdPort = ntohs(in.sin_port);
-    uint16_t dataPort = ntohs(cmd->dataPort);
+    uint16_t dataPort = cmd->dataPort();
 
     // (TP-4)
 
@@ -180,16 +179,16 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 		    uint32_t mcAddr;
 
 		    if (nameLookup(nodename_t(clientName), mcAddr) && IN_MULTICAST(mcAddr))
-			 task = new MulticastTask(*this, clientName, ntohl(cmd->pid), cmdPort, dataPort, mcAddr);
+			 task = new MulticastTask(*this, clientName, cmd->pid(), cmdPort, dataPort, mcAddr);
 		    else {
 			if (taskExists(clientName))
 			    throw ACNET_NAME_IN_USE;
 
 			if (len == sizeof(TcpConnectCommand))
-			    task = new RemoteTask(*this, clientName, ntohl(cmd->pid), cmdPort, dataPort,
-					    ntohl(((TcpConnectCommand const* const) cmd)->remoteAddr));
+			    task = new RemoteTask(*this, clientName, cmd->pid(), cmdPort, dataPort,
+					    ((TcpConnectCommand const* const) cmd)->remoteAddr());
 			else
-			    task = new LocalTask(*this, clientName, ntohl(cmd->pid), cmdPort, dataPort);
+			    task = new LocalTask(*this, clientName, cmd->pid(), cmdPort, dataPort);
 		    }
 
 		    task->id_ = (acnet_taskid_t) taskId;
@@ -215,8 +214,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
     {
 	char cBuf[16], nBuf[16];
 	syslog(LOG_DEBUG, "	connect: port:%d task:'%s' node:'%s' err:%d",
-	       dataPort, rtoa(clientName.raw(), cBuf), rtoa(vNodeName.raw(), nBuf),
-	       ack.status().raw());
+	       dataPort, clientName.str(cBuf), cmd->virtualNodeName().str(nBuf), ack.status().raw());
     }
 #endif
 

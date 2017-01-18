@@ -13,6 +13,22 @@ MulticastTask::~MulticastTask()
     dropMulticastGroup(sClient, mcAddr);
 }
 
+void MulticastTask::handleReceiveRequests()
+{
+    Ack ack;
+
+    if (!sendAckToClient(&ack, sizeof(ack)))
+	taskPool().removeTask(this);
+}
+
+void MulticastTask::handleBlockRequests()
+{
+    Ack ack;
+
+    if (!sendAckToClient(&ack, sizeof(ack)))
+	taskPool().removeTask(this);
+}
+
 size_t MulticastTask::totalProp() const
 {
     return ExternalTask::totalProp() + 1;

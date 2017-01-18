@@ -56,19 +56,19 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
     // If a virtual node is not specified, then use the node that was
     // provided on the -t command line option
 
-    if (!cmd->virtualNodeName)
-	cmd->virtualNodeName = htonl(tcpNode.raw());
+    if (cmd->virtualNodeName().isBlank())
+	cmd->setVirtualNodeName(tcpNode);
 
-    switch (ntohs(cmd->cmd)) {
+    switch (cmd->cmd()) {
      case CommandList::cmdConnect:
 	{
 	    TcpConnectCommand tmp;
 
-	    tmp.clientName = cmd->clientName;
-	    tmp.virtualNodeName = cmd->virtualNodeName;
-	    tmp.pid = htonl(getpid());
-	    tmp.dataPort = htons(getSocketPort(sData));
-	    tmp.remoteAddr = htonl(remoteAddr);
+	    tmp.setClientName(cmd->clientName());
+	    tmp.setVirtualNodeName(cmd->virtualNodeName());
+	    tmp.setPid(getpid());
+	    tmp.setDataPort(getSocketPort(sData));
+	    tmp.setRemoteAddr(remoteAddr);
 
 	    res = send(sCmd, &tmp, sizeof(tmp), 0);
 	}

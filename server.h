@@ -77,6 +77,8 @@ inline uint32_t atohl(uint32_t v) throw()
     return (v >> 24) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | (v << 24);
 }
 
+#define be16(v)	 ((uint16_t) (v))
+
 #else
 
 #define htoas(v) ((uint16_t) (v))
@@ -84,13 +86,19 @@ inline uint32_t atohl(uint32_t v) throw()
 #define atohs(v) ((uint16_t) (v))
 #define atohl(v) ((uint32_t) (v))
 
+#define be16(v)	 ((v >> 8) | (v << 8))
+
 #endif
 
 #if THIS_TARGET == Darwin_Target
     #define NO_DAEMON 1
 #endif
 
-// Project-wide types
+// Project-wide types and functions
+
+uint32_t ator(char const *);
+char const* rtoa(uint32_t, char * = 0);
+char const* rtoa_strip(uint32_t, char * = 0);
 
 typedef uint16_t reqid_t;
 typedef uint16_t rpyid_t;
@@ -130,6 +138,7 @@ class taskhandle_t {
 
     bool isBlank() const { return h == 0; }
     uint32_t raw() const { return h; }
+    char const* str(char *buf = 0) { return rtoa(h, buf); }
 };
 
 class nodename_t {
@@ -146,7 +155,10 @@ class nodename_t {
 
     bool isBlank() const { return h == 0; }
     uint32_t raw() const { return h; }
+    char const* str(char *buf = 0) { return rtoa(h, buf); }
 };
+
+std::string rtos(nodename_t);
 
 #include "trunknode.h"
 
@@ -264,71 +276,87 @@ extern const status_t ACNET_INVARG;
 // sockaddr_in pointers to sockaddr.)
 
 enum class CommandList : uint16_t {
-        cmdKeepAlive	 	= 0,
+        cmdKeepAlive	 		= be16(0),
 
-	cmdConnect    		= 1,
-	cmdRenameTask 		= 2,
-	cmdDisconnect		= 3,
+	cmdConnect    			= be16(1),
+	cmdRenameTask 			= be16(2),
+	cmdDisconnect			= be16(3),
 
-	cmdSend 		= 4,
-	cmdSendRequest 		= 5,
-	cmdReceiveRequests	= 6,
-	cmdSendReply		= 7,
-	cmdCancel 		= 8,
-	cmdRequestAck 		= 9,
+	cmdSend 			= be16(4),
+	cmdSendRequest 			= be16(5),
+	cmdReceiveRequests		= be16(6),
+	cmdSendReply			= be16(7),
+	cmdCancel 			= be16(8),
+	cmdRequestAck 			= be16(9),
 
-	cmdAddNode 		= 10,
-	cmdNameLookup 		= 11,
-	cmdNodeLookup 		= 12,
-	cmdLocalNode 		= 13,
+	cmdAddNode 			= be16(10),
+	cmdNameLookup 			= be16(11),
+	cmdNodeLookup 			= be16(12),
+	cmdLocalNode 			= be16(13),
 
-	cmdTaskPid		= 14,
-	cmdGlobalStats		= 15,
-	cmdAckGlobalStats	= 16,
+	cmdTaskPid			= be16(14),
+	cmdGlobalStats			= be16(15),
+	cmdAckGlobalStats		= be16(16),
 
-	cmdDisconnectSingle	= 17,
+	cmdDisconnectSingle		= be16(17),
 
-	cmdSendRequestWithTmo	= 18,
-	cmdIgnoreRequest        = 19,
-	cmdBlockRequests	= 20,
+	cmdSendRequestWithTimeout	= be16(18),
+	cmdIgnoreRequest        	= be16(19),
+	cmdBlockRequests		= be16(20),
 
-	cmdTcpConnect  		= 21,
+	cmdTcpConnect  			= be16(21),
 
-	cmdDefaultNode 		= 22
+	cmdDefaultNode 			= be16(22)
 };
 
 enum class AckList : uint16_t {
-	ackAck			= 0,
+	ackAck				= be16(0),
 
-	ackConnect		= 1,
+	ackConnect			= be16(1),
 
-	ackSendRequest		= 2,
-	ackSendReply		= 3,
+	ackSendRequest			= be16(2),
+	ackSendReply			= be16(3),
 
-	ackNameLookup		= 4,
-	ackNodeLookup		= 5,
+	ackNameLookup			= be16(4),
+	ackNodeLookup			= be16(5),
 
-	ackTaskPid		= 6,
-	ackGlobalStats		= 7,
+	ackTaskPid			= be16(6),
+	ackGlobalStats			= be16(7),
 };
 
 // This is the command header for all commands send from the client to
 // the acnet task.
 
-struct CommandHeader {
-    uint16_t const cmd;
-    uint32_t clientName;
-    uint32_t virtualNodeName;
+#define ASSERT_SIZE(C, S) static_assert(sizeof(C) == S, "Size of "#C" is incorrect");
 
+struct CommandHeader {
  private:
+    CommandList const cmd_;
+    uint32_t clientName_;
+    uint32_t virtualNodeName_;
+
     CommandHeader();
-    CommandHeader(CommandHeader const&);
-    CommandHeader& operator=(CommandHeader const&);
 
  public:
-    CommandHeader(CommandList Cmd) : cmd(htons(Cmd)), clientName(0),
-				     virtualNodeName(0) { }
+    CommandHeader(CommandList Cmd) : cmd_(Cmd), clientName_(0),
+				     virtualNodeName_(0) { }
+
+    inline CommandList cmd() const { return cmd_; }
+    inline nodename_t virtualNodeName() const { return nodename_t(ntohl(virtualNodeName_)); }
+    inline taskhandle_t clientName() const { return taskhandle_t(ntohl(clientName_)); }
+
+    inline void setClientName(taskhandle_t clientName)
+    {
+	clientName_ = htonl(clientName.raw());
+    }
+
+    inline void setVirtualNodeName(nodename_t virtualNodeName)
+    {
+	virtualNodeName_ = htonl(virtualNodeName.raw());
+    }
 } __attribute__((packed));
+
+ASSERT_SIZE(CommandHeader, 10)
 
 template<CommandList Cmd>
 struct CommandHeaderBase : public CommandHeader {
@@ -339,13 +367,40 @@ struct CommandHeaderBase : public CommandHeader {
 // AckConnect is sent back to the client.
 
 struct ConnectCommand : public CommandHeaderBase<CommandList::cmdConnect> {
-    pid_t pid;
-    uint16_t dataPort;
+ private:
+    uint32_t pid_;
+    uint16_t dataPort_;
+
+ public:
+    inline pid_t pid() const { return ntohl(pid_); }
+    inline uint16_t dataPort() const { return ntohs(dataPort_); }
+
+    inline void setPid(pid_t pid)
+    {
+	pid_ = htonl(pid);
+    }
+
+    inline void setDataPort(uint16_t port){
+	dataPort_ = htons(port);
+    }
 } __attribute__((packed));
 
+ASSERT_SIZE(ConnectCommand, 16)
+
 struct TcpConnectCommand : public ConnectCommand {
-    uint32_t remoteAddr;
+ private:
+    uint32_t remoteAddr_;
+
+ public:
+    inline uint32_t remoteAddr() const { return ntohl(remoteAddr_); }
+
+    inline void setRemoteAddr(uint32_t remoteAddr)
+    {
+	remoteAddr_ = htonl(remoteAddr);
+    }
 } __attribute__((packed));
+
+ASSERT_SIZE(TcpConnectCommand, 20)
 
 // Sent by a client periodicly to keep it's Acnet connection.  An
 // AckCommand is sent back to the client.
@@ -353,13 +408,20 @@ struct TcpConnectCommand : public ConnectCommand {
 struct KeepAliveCommand : public CommandHeaderBase<CommandList::cmdKeepAlive> {
 } __attribute__((packed));
 
+ASSERT_SIZE(KeepAliveCommand, 10)
+
 // Sent by a client when it wants to rename a connected task. An
 // AckConnect is sent back to the client.
 
-struct RenameTaskCommand :
-    public CommandHeaderBase<CommandList::cmdRenameTask> {
-    uint32_t newName;
+struct RenameTaskCommand : public CommandHeaderBase<CommandList::cmdRenameTask> {
+ private:
+    uint32_t newName_;
+
+ public:
+    inline taskhandle_t newName() const { return taskhandle_t(ntohl(newName_)); }
 } __attribute__((packed));
+
+ASSERT_SIZE(RenameTaskCommand, 14)
 
 // Sent by a client when it wants to disconnect from the network. An
 // AckCommand is sent back to the client.
@@ -368,18 +430,30 @@ struct DisconnectCommand :
     public CommandHeaderBase<CommandList::cmdDisconnect> {
 } __attribute__((packed));
 
+ASSERT_SIZE(DisconnectCommand, 10)
+
 struct DisconnectSingleCommand :
     public CommandHeaderBase<CommandList::cmdDisconnectSingle> {
 } __attribute__((packed));
+
+ASSERT_SIZE(DisconnectSingleCommand, 10)
 
 // Sent by a client wanting to send an USM. An AckCommand is sent to
 // the client.
 
 struct SendCommand : public CommandHeaderBase<CommandList::cmdSend> {
-    uint32_t taskName;
-    uint16_t addr;
-    uint8_t msg[];
+ private:
+    uint32_t task_;
+    uint16_t addr_;
+    uint8_t data_[];
+
+ public:
+    inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
+    inline taskhandle_t task() const { return taskhandle_t(ntohl(task_)); }
+    inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
+
+ASSERT_SIZE(SendCommand, 16)
 
 // Sent by a client that wants to be a "RUM listener". The acnet task
 // marks the task handle (previously registered with a ConnectCommand)
@@ -389,82 +463,166 @@ struct ReceiveRequestCommand :
     public CommandHeaderBase<CommandList::cmdReceiveRequests> {
 } __attribute__((packed));
 
+ASSERT_SIZE(ReceiveRequestCommand, 10)
+
 // Sent by a client that wants to do a lookup of a node name to its
 // trunk/node combo.
 
 struct NameLookupCommand :
     public CommandHeaderBase<CommandList::cmdNameLookup> {
-    uint32_t name;
+
+ private:
+    uint32_t name_;
+
+ public:
+    inline nodename_t name() const { return nodename_t(ntohl(name_)); }
 } __attribute__((packed));
+
+ASSERT_SIZE(NameLookupCommand, 14)
 
 // Sent by a client that wants to do a lookup of a node name from its
 // trunk/node combo.
 
 struct NodeLookupCommand :
     public CommandHeaderBase<CommandList::cmdNodeLookup> {
-    uint16_t addr;
+
+ private:
+    uint16_t addr_;
+
+ public:
+    inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
 } __attribute__((packed));
+
+ASSERT_SIZE(NodeLookupCommand, 12)
 
 struct LocalNodeCommand :
     public CommandHeaderBase<CommandList::cmdLocalNode> {
 } __attribute__((packed));
 
+ASSERT_SIZE(LocalNodeCommand, 10)
+
 struct DefaultNodeCommand :
     public CommandHeaderBase<CommandList::cmdDefaultNode> {
 } __attribute__((packed));
 
+ASSERT_SIZE(DefaultNodeCommand, 10)
+
 struct SendRequestCommand :
     public CommandHeaderBase<CommandList::cmdSendRequest> {
-    uint32_t task;
-    uint16_t addr;
-    uint16_t flags;
-    uint8_t data[];
+
+ private:
+    uint32_t task_;
+    uint16_t addr_;
+    uint16_t flags_;
+    uint8_t data_[];
+
+ public:
+    inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
+    inline taskhandle_t task() const { return taskhandle_t(ntohl(task_)); }
+    inline uint16_t flags() const { return ntohs(flags_); }
+    inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
 
-struct SendRequestWithTmoCommand :
-    public CommandHeaderBase<CommandList::cmdSendRequestWithTmo> {
-    uint32_t task;
-    uint16_t addr;
-    uint16_t flags;
-    uint32_t tmo;
-    uint8_t data[];
+ASSERT_SIZE(SendRequestCommand, 18)
+
+struct SendRequestWithTimeoutCommand :
+    public CommandHeaderBase<CommandList::cmdSendRequestWithTimeout> {
+
+ private:
+    uint32_t task_;
+    uint16_t addr_;
+    uint16_t flags_;
+    uint32_t timeout_;
+    uint8_t data_[];
+
+ public:
+    inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
+    inline taskhandle_t task() const { return taskhandle_t(ntohl(task_)); }
+    inline uint16_t flags() const { return ntohs(flags_); }
+    inline uint32_t timeout() const { return ntohl(timeout_); }
+    inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
+
+ASSERT_SIZE(SendRequestWithTimeoutCommand, 22)
 
 struct SendReplyCommand : public CommandHeaderBase<CommandList::cmdSendReply> {
-    rpyid_t rpyid;
-    uint16_t flags;
-    int16_t status;
-    uint8_t data[];
+ private:
+    rpyid_t rpyid_;
+    uint16_t flags_;
+    int16_t status_;
+    uint8_t data_[];
+
+ public:
+    inline rpyid_t rpyid() const { return ntohs(rpyid_); }
+    inline uint16_t flags() const { return ntohs(flags_); }
+    inline status_t status() const { return status_t(ntohs(status_)); }
+    inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
+
+ASSERT_SIZE(SendReplyCommand, 16)
 
 struct IgnoreRequestCommand :
     public CommandHeaderBase<CommandList::cmdIgnoreRequest> {
-    rpyid_t rpyid;
+
+ private:
+    rpyid_t rpyid_;
+
+ public:
+    inline rpyid_t rpyid() const { return ntohs(rpyid_); }
 } __attribute__((packed));
 
+ASSERT_SIZE(IgnoreRequestCommand, 12)
+
 struct CancelCommand : public CommandHeaderBase<CommandList::cmdCancel> {
-    reqid_t reqid;
+ private:
+    reqid_t reqid_;
+
+ public:
+    inline reqid_t reqid() const { return ntohs(reqid_); }
 } __attribute__((packed));
+
+ASSERT_SIZE(CancelCommand, 12)
 
 struct BlockRequestCommand :
     public CommandHeaderBase<CommandList::cmdBlockRequests> {
 } __attribute__((packed));
 
+ASSERT_SIZE(BlockRequestCommand, 10)
+
 struct RequestAckCommand :
     public CommandHeaderBase<CommandList::cmdRequestAck> {
-    rpyid_t rpyid;
+
+ private:
+    rpyid_t rpyid_;
+
+ public:
+    inline rpyid_t rpyid() const { return ntohs(rpyid_); }
 } __attribute__((packed));
+
+ASSERT_SIZE(RequestAckCommand, 12)
 
 struct AddNodeCommand : public CommandHeaderBase<CommandList::cmdAddNode> {
-    uint32_t ipAddr;
-    uint32_t optFlgs;
-    uint16_t addr;
-    uint32_t nodeName;
+ private:
+    uint32_t ipAddr_;
+    uint32_t flags_;
+    uint16_t addr_;
+    uint32_t nodeName_;
+
+ public:
+    inline uint32_t ipAddr() const { return ntohl(ipAddr_); }
+    inline uint32_t flags() const { return ntohl(flags_); }
+    inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
+    inline nodename_t nodeName() const { return nodename_t(ntohl(nodeName_)); }
 } __attribute__((packed));
 
+ASSERT_SIZE(AddNodeCommand, 24)
+
 struct TaskPidCommand : public CommandHeaderBase<CommandList::cmdTaskPid> {
+ private:
     uint32_t task;
 } __attribute__((packed));
+
+ASSERT_SIZE(TaskPidCommand, 14)
 
 struct GlobalStats {
     uint32_t statUsmRcv;
@@ -480,17 +638,18 @@ struct GlobalStatsCommand :
     public CommandHeaderBase<CommandList::cmdGlobalStats> {
 } __attribute__((packed));
 
+ASSERT_SIZE(GlobalStatsCommand, 10)
 
 class AckHeader {
-    uint16_t const cmd_;
+    AckList const cmd_;
     int16_t status_;
 
     AckHeader();
 
  public:
-    AckHeader(AckList cmd) : cmd_(htons(cmd))
-    { setStatus(ACNET_SUCCESS); }
-    AckList cmd() const { return AckList(ntohs(cmd_)); }
+    AckHeader(AckList cmd) : cmd_(cmd) { setStatus(ACNET_SUCCESS); }
+
+    AckList cmd() const { return cmd_; }
     status_t status() const { return status_t(ntohs(status_)); }
     void setStatus(status_t status) { status_ = htons(status.raw()); }
 } __attribute__((packed));
@@ -842,6 +1001,8 @@ class TaskInfo : private Noncopyable {
     unsigned pendingRequests;
     unsigned maxPendingRequests;
 
+    TaskInfo();
+
  protected:
     ReqList requests;
     RpyList replies;
@@ -860,7 +1021,7 @@ class TaskInfo : private Noncopyable {
     TaskInfo(TaskPool&, taskhandle_t);
     virtual ~TaskInfo() {}
 
-    void setHandle(taskhandle_t th)		{ handle_ = th; }
+    void setHandle(taskhandle_t th) { handle_ = th; }
 
     // Informational
 
@@ -933,7 +1094,7 @@ class ExternalTask : public TaskInfo {
     virtual void handleSendReply(SendReplyCommand const *, size_t const);
     virtual void handleIgnoreRequest(IgnoreRequestCommand const *);
     virtual void handleSendRequest(SendRequestCommand const *, size_t const);
-    virtual void handleSendRequestWithTmo(SendRequestWithTmoCommand const*, size_t const);
+    virtual void handleSendRequestWithTimeout(SendRequestWithTimeoutCommand const*, size_t const);
     virtual void handleSend(SendCommand const *, size_t const);
     virtual void handleTaskPid();
     virtual void handleGlobalStats();
@@ -1021,6 +1182,9 @@ class RemoteTask : public ExternalTask {
 //
 class MulticastTask : public ExternalTask {
     uint32_t mcAddr;
+
+    void handleReceiveRequests();
+    void handleBlockRequests();
 
     MulticastTask();
 
@@ -1376,13 +1540,6 @@ bool trunkExists(trunk_t);
 bool joinMulticastGroup(int, uint32_t);
 void dropMulticastGroup(int, uint32_t);
 uint32_t countMulticastGroup(uint32_t);
-
-// RAD50
-
-uint32_t ator(char const *);
-char const* rtoa(uint32_t, char * = 0);
-char const* rtoa_strip(uint32_t, char * = 0);
-std::string rtos(nodename_t);
 
 // Misc
 
