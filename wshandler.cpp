@@ -148,7 +148,7 @@ bool WebSocketProtocolHandler::handleDataSocket()
     return done;
 }
 
-bool WebSocketProtocolHandler::handleAcnetCommand(vector<uint8_t>& payload)
+bool WebSocketProtocolHandler::handleAcnetCommand(std::vector<uint8_t>& payload)
 {
     bool done = false;
     uint16_t type;
