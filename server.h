@@ -1079,8 +1079,9 @@ class ExternalTask : public TaskInfo {
 
     ExternalTask();
 
- protected:
     bool checkResult(ssize_t);
+
+ protected:
 
     // Client command handlers
 
@@ -1101,6 +1102,11 @@ class ExternalTask : public TaskInfo {
     virtual void handleKeepAlive();
     virtual void handleUnknownCommand(CommandHeader const *, size_t len);
 
+    void commandReceived() const { lastCommandTime = now().tv_sec; }
+    bool sendErrorToClient(status_t);
+    bool sendAckToClient(void const*, size_t);
+    bool sendMessageToClient(AcnetClientMessage*);
+
  public:
     ExternalTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t);
     virtual ~ExternalTask() {}
@@ -1113,16 +1119,10 @@ class ExternalTask : public TaskInfo {
     uint16_t dataPort() const { return ntohs(saData.sin_port); }
 
     void handleClientCommand(CommandHeader const* const, size_t const);
-    bool sendErrorToClient(status_t);
+    bool sendDataToClient(AcnetHeader const*);
 
     bool equals(TaskInfo const*) const;
     bool needsToBeThrottled() const { return true; }
-    void commandReceived() const { lastCommandTime = now().tv_sec; }
-
-    ssize_t sendAckToClient(TaskInfo *, void const*, size_t);
-    bool sendAckToClient(void const*, size_t);
-    bool sendDataToClient(AcnetHeader const*);
-    bool sendMessageToClient(AcnetClientMessage*);
 
     char const* name() const { return "ExternalTask"; }
     size_t totalProp() const;
