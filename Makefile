@@ -41,7 +41,7 @@ ACNETD=		acnetd
 ACNETD_OBJS=	main.o taskinfo.o inttask.o exttask.o mctask.o lcltask.o remtask.o \
 		taskpool.o ipaddr.o network.o acnaux.o reqinfo.o rpyinfo.o \
 		mcast.o global.o rad50.o node.o timesensitive.o
-		
+
 ifdef TCP_CLIENTS
 ACNETD_OBJS+=	tcpclient.o rawhandler.o wshandler.o
 endif
@@ -50,7 +50,7 @@ VALIDATOR=	validator
 VALIDATOR_OBJS=	regression.o global.o rad50.o
 
 TARGETS=	${ACNETD}
-#-I../../uls/ul_acnetd -L../../uls/ul_acnetd 
+#-I../../uls/ul_acnetd -L../../uls/ul_acnetd
 CFLAGS+=	-pipe -W -Wall  -Werror -I/usr/include/openssl -fno-strict-aliasing\
 		-DTHIS_PLATFORM=\"${THIS_PLATFORM}\" -DTHIS_ARCH=\"${THIS_ARCH}\" \
 		-DTHIS_TARGET=${THIS_PLATFORM}_Target -Wno-deprecated-declarations \
@@ -90,7 +90,7 @@ CXXFLAGS+=	${CFLAGS}
 
 ifdef TCP_CLIENTS
 CXXFLAGS+=	-DTCP_CLIENTS
-LDFLAGS=-lssl -lcrypto
+LDFLAGS=-lcrypto
 endif
 
 ifeq (${THIS_PLATFORM}, SunOS)
