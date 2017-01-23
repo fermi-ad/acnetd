@@ -98,8 +98,6 @@ bool WebSocketProtocolHandler::sendBinaryDataToClient(Pkt2 *pkt2, ssize_t len, u
 {
     bool done = false;
 
-    syslog(LOG_DEBUG, "send binary to client: %ld", (long) len);
-
     if (len <= 125) {
 
 	// Convert packet (Pkt2) to small header size (Pkt1) and send
@@ -199,20 +197,16 @@ bool WebSocketProtocolHandler::handleClientSocket()
 		     case 0x1:
 			{
 			    std::string s((char *) payload.data(), payload.size());
-			    syslog(LOG_DEBUG, "Text: %ld '%s'", (long) payload.size(), s.c_str());
 			    handleAcnetCommand(payload);
 			}
 			break;
 
 		     case 0x2:
-			syslog(LOG_DEBUG, "Binary: %ld", (long) payload.size());
 			handleAcnetCommand(payload);
 			break;
 
 		     case 0x8:
 			{
-			    syslog(LOG_DEBUG, "Close: %ld", (long) payload.size());
-
 			    uint8_t msg[] = { 0x88, (uint8_t) payload.size() };
 			    send(sTcp, msg, sizeof(msg), 0);
 			    send(sTcp, payload.data(), payload.size(), 0);
@@ -222,8 +216,6 @@ bool WebSocketProtocolHandler::handleClientSocket()
 
 		     case 0x9:
 			{
-			    syslog(LOG_DEBUG, "Ping: %ld", (long) payload.size());
-
 			    uint8_t pong[] = { 0x8a, (uint8_t) payload.size() };
 			    send(sTcp, pong, sizeof(pong), 0);
 			    send(sTcp, payload.data(), payload.size(), 0);
@@ -231,7 +223,6 @@ bool WebSocketProtocolHandler::handleClientSocket()
 			break;
 
 		     case 0xa:
-			syslog(LOG_DEBUG, "Pong: %ld", (long) payload.size());
 			break;
 		    }
 
