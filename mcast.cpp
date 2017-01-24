@@ -4,20 +4,21 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include "server.h"
 
 class MulticastRefCount {
  public:
-    uint32_t addr;
+    ipaddr_t addr;
     uint32_t refCount;
 
-    MulticastRefCount() : addr(0), refCount(0) { }
-    MulticastRefCount(uint32_t addr) : addr(addr), refCount(1) { }
+    MulticastRefCount() : refCount(0) { }
+    MulticastRefCount(ipaddr_t addr) : addr(addr), refCount(1) { }
 };
 
 typedef std::vector<MulticastRefCount> MulticastRefVector;
 static MulticastRefVector mcRef;
 
-uint32_t countMulticastGroup(uint32_t addr)
+uint32_t countMulticastGroup(ipaddr_t addr)
 {
     auto ii = mcRef.begin();
 
@@ -31,7 +32,7 @@ uint32_t countMulticastGroup(uint32_t addr)
     return 0;
 }
 
-bool joinMulticastGroup(int socket, uint32_t addr)
+bool joinMulticastGroup(int socket, ipaddr_t addr)
 {
     auto ii = mcRef.begin();
 
@@ -56,17 +57,15 @@ bool joinMulticastGroup(int socket, uint32_t addr)
     ip_mreq mreq;
 
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-    mreq.imr_multiaddr.s_addr = htonl(addr);
+    mreq.imr_multiaddr.s_addr = htonl(addr.raw());
     if (-1 == setsockopt(socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)))
-	syslog(LOG_ERR, "Couldn't join multicast group: %d.%d.%d.%d -- %m", addr >> 24,
-	       (uint8_t) (addr >> 16), (uint8_t) (addr >> 8), (uint8_t) addr);
+	syslog(LOG_ERR, "Couldn't join multicast group: %s -- %m", addr.str().c_str());
     else {
 	MulticastRefCount mcRefTmp(addr);
 
 	mcRef.push_back(mcRefTmp);
 #ifdef DEBUG
-	syslog(LOG_DEBUG, "Joined multicast group: %d.%d.%d.%d", addr >> 24,
-	       (uint8_t) (addr >> 16), (uint8_t) (addr >> 8), (uint8_t) addr);
+	syslog(LOG_DEBUG, "Joined multicast group: %s", addr.str().c_str());
 #endif
 	return true;
     }
@@ -74,7 +73,7 @@ bool joinMulticastGroup(int socket, uint32_t addr)
     return false;
 }
 
-void dropMulticastGroup(int socket, uint32_t addr)
+void dropMulticastGroup(int socket, ipaddr_t addr)
 {
     auto ii = mcRef.begin();
 
@@ -93,14 +92,12 @@ void dropMulticastGroup(int socket, uint32_t addr)
 		ip_mreq mreq;
 
 		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-		mreq.imr_multiaddr.s_addr = htonl(addr);
+		mreq.imr_multiaddr.s_addr = htonl(addr.raw());
 		if (-1 == setsockopt(socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)))
-		    syslog(LOG_ERR, "Couldn't drop multicast group: %d.%d.%d.%d -- %m", addr >> 24,
-				(uint8_t) (addr >> 16), (uint8_t) (addr >> 8), (uint8_t) addr);
+		    syslog(LOG_ERR, "Couldn't drop multicast group: %s -- %m", addr.str().c_str());
 #ifdef DEBUG
 		else
-		    syslog(LOG_DEBUG, "Dropped multicast group: %d.%d.%d.%d", addr >> 24,
-			   (uint8_t) (addr >> 16), (uint8_t) (addr >> 8), (uint8_t) addr);
+		    syslog(LOG_DEBUG, "Dropped multicast group: %s", addr.str().c_str());
 #endif
 		mcRef.erase(ii);
 	    }

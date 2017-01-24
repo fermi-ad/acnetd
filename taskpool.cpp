@@ -179,7 +179,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 		    uint32_t mcAddr;
 
 		    if (nameLookup(nodename_t(clientName), mcAddr) && IN_MULTICAST(mcAddr))
-			 task = new MulticastTask(*this, clientName, cmd->pid(), cmdPort, dataPort, mcAddr);
+			 task = new MulticastTask(*this, clientName, cmd->pid(), cmdPort, dataPort, ipaddr_t(mcAddr));
 		    else {
 			if (taskExists(clientName))
 			    throw ACNET_NAME_IN_USE;
