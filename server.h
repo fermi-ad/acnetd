@@ -1220,7 +1220,7 @@ protected:
 // multicasted messages. Support both local and remote clients
 //
 class MulticastTask : public ExternalTask {
-    uint32_t mcAddr;
+    ipaddr_t mcAddr;
 
     void handleReceiveRequests();
     void handleBlockRequests();
@@ -1228,7 +1228,7 @@ class MulticastTask : public ExternalTask {
     MulticastTask();
 
  public:
-    MulticastTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
+    MulticastTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, ipaddr_t);
     virtual ~MulticastTask();
 
     bool acceptsUsm() const { return true; }
@@ -1576,9 +1576,9 @@ bool trunkExists(trunk_t);
 
 // Multicast connections
 
-bool joinMulticastGroup(int, uint32_t);
-void dropMulticastGroup(int, uint32_t);
-uint32_t countMulticastGroup(uint32_t);
+bool joinMulticastGroup(int, ipaddr_t);
+void dropMulticastGroup(int, ipaddr_t);
+uint32_t countMulticastGroup(ipaddr_t);
 
 // Misc
 

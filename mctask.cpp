@@ -1,7 +1,7 @@
 #include "server.h"
 
 MulticastTask::MulticastTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
-			     uint16_t dataPort, uint32_t mcAddr) :
+			     uint16_t dataPort, ipaddr_t mcAddr) :
     ExternalTask(taskPool, handle, pid, cmdPort, dataPort),  mcAddr(mcAddr)
 {
     if (!joinMulticastGroup(sClient, mcAddr))
@@ -53,9 +53,7 @@ std::string MulticastTask::propVal(size_t ii) const
     if (ii == (ExternalTask::totalProp())) {
 	std::ostringstream os;
 
-	os << (mcAddr >> 24) << "." << (int) ((uint8_t) (mcAddr >> 16)) << "." <<
-		(int) ((uint8_t) (mcAddr >> 8)) << "." << (int) ((uint8_t) mcAddr);
-	os << " (" << countMulticastGroup(mcAddr) << ")";
+	os << mcAddr << " (" << countMulticastGroup(mcAddr) << ")";
 	return os.str();
     }
 

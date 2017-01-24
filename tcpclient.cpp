@@ -68,7 +68,7 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 	    tmp.setVirtualNodeName(cmd->virtualNodeName());
 	    tmp.setPid(getpid());
 	    tmp.setDataPort(getSocketPort(sData));
-	    tmp.setRemoteAddr(remoteAddr);
+	    tmp.setRemoteAddr(ipaddr_t(remoteAddr));
 
 	    res = send(sCmd, &tmp, sizeof(tmp), 0);
 	}

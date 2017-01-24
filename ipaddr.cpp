@@ -338,7 +338,7 @@ void setMyIp()
     // Add generic multicast to trunk/node table
 
     insertNode(ACNET_MULTICAST, nodename_t(ator("MCAST")), octetsToIp(239, 128, 4, 1));
-    joinMulticastGroup(sClient, octetsToIp(239, 128, 4, 1));
+    joinMulticastGroup(sClient, ipaddr_t(octetsToIp(239, 128, 4, 1)));
 }
 
 // Associates a partially filled buffer with an ACNET node.
