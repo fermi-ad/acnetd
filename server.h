@@ -158,6 +158,37 @@ class nodename_t {
     char const* str(char *buf = 0) { return rtoa(h, buf); }
 };
 
+class ipaddr_t {
+    uint32_t addr;
+
+    friend std::ostream& operator<<(std::ostream& os, ipaddr_t v);
+
+ public:
+    ipaddr_t() : addr(0) {}
+    explicit ipaddr_t(uint32_t const addr) : addr(addr) {}
+
+    bool isBlank() const { return addr == 0; }
+    uint32_t raw() const { return addr; }
+    std::string str() const
+    {
+	std::ostringstream os;
+	os << this;
+	return os.str();
+    }
+
+    bool operator< (ipaddr_t const o) const { return addr < o.addr; }
+    bool operator== (ipaddr_t const o) const { return addr == o.addr; }
+    bool operator!= (ipaddr_t const o) const { return addr != o.addr; }
+};
+
+inline std::ostream& operator<<(std::ostream& os, ipaddr_t v)
+{
+    os << (v.addr >> 24) << "." << (int) ((uint8_t) (v.addr >> 16)) << "." <<
+	    (int) ((uint8_t) (v.addr >> 8)) << "." << (int) ((uint8_t) v.addr);
+
+    return os;
+}
+
 std::string rtos(nodename_t);
 
 #include "trunknode.h"
@@ -392,11 +423,11 @@ struct TcpConnectCommand : public ConnectCommand {
     uint32_t remoteAddr_;
 
  public:
-    inline uint32_t remoteAddr() const { return ntohl(remoteAddr_); }
+    inline ipaddr_t remoteAddr() const { return ipaddr_t(ntohl(remoteAddr_)); }
 
-    inline void setRemoteAddr(uint32_t remoteAddr)
+    inline void setRemoteAddr(ipaddr_t remoteAddr)
     {
-	remoteAddr_ = htonl(remoteAddr);
+	remoteAddr_ = htonl(remoteAddr.raw());
     }
 } __attribute__((packed));
 
@@ -1158,12 +1189,12 @@ class LocalTask : public ExternalTask {
 // TCP client connections from remote machines
 //
 class RemoteTask : public ExternalTask {
-    uint32_t remoteAddr;
+    ipaddr_t remoteAddr;
 
     RemoteTask();
 
  public:
-    RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, uint32_t);
+    RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, ipaddr_t);
     virtual ~RemoteTask() {}
 
     bool acceptsUsm() const { return false; }
