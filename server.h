@@ -294,6 +294,7 @@ extern const status_t ACNET_LEVEL2;
 extern const status_t ACNET_NODE_DOWN;
 extern const status_t ACNET_BUG;
 extern const status_t ACNET_INVARG;
+extern const status_t ACNET_REQREJ;
 
 // This section starts a hierarchy of classes that describe the layout
 // of commands passed between the acnet task and the clients. We use
@@ -1192,6 +1193,13 @@ class RemoteTask : public ExternalTask {
     ipaddr_t remoteAddr;
 
     RemoteTask();
+
+    bool rejectTask(taskhandle_t);
+
+protected:
+    void handleSendRequest(SendRequestCommand const *, size_t const);
+    void handleSendRequestWithTimeout(SendRequestWithTimeoutCommand const*, size_t const);
+    void handleSend(SendCommand const *, size_t const);
 
  public:
     RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, ipaddr_t);
