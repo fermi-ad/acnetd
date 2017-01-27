@@ -57,7 +57,7 @@ std::string RemoteTask::propVal(size_t ii) const
 	return ExternalTask::propVal(ii);
 
     if (ii == (ExternalTask::totalProp()))
-	remoteAddr.str();
+	return remoteAddr.str();
 
     return "";
 }

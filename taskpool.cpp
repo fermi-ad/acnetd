@@ -176,10 +176,10 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 		if (taskId > 0) {
 		    // Create a new task based on the connection parameters
 
-		    uint32_t mcAddr;
+		    ipaddr_t addr;
 
-		    if (nameLookup(nodename_t(clientName), mcAddr) && IN_MULTICAST(mcAddr))
-			 task = new MulticastTask(*this, clientName, cmd->pid(), cmdPort, dataPort, ipaddr_t(mcAddr));
+		    if (nameLookup(nodename_t(clientName), addr) && addr.isMulticast())
+			 task = new MulticastTask(*this, clientName, cmd->pid(), cmdPort, dataPort, addr);
 		    else {
 			if (taskExists(clientName))
 			    throw ACNET_NAME_IN_USE;

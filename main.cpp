@@ -22,9 +22,9 @@
 // Local prototypes...
 
 static int errorConditions();
-static uint32_t ipAddress(trunknode_t&, uint32_t, bool);
+static ipaddr_t ipAddress(trunknode_t&, ipaddr_t, bool);
 static bool getResources();
-static bool isPacketSizeValid(size_t, uint16_t, size_t, uint32_t);
+static bool isPacketSizeValid(size_t, uint16_t, size_t, ipaddr_t);
 static int normalConditions();
 static void releaseResources();
 static void sigHup(int);
@@ -684,7 +684,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 // a valid IP table, then we temporarily insert the entry into our table (it
 // will get overridden when NODES updates us.)
 
-static uint32_t ipAddress(trunknode_t& tn, uint32_t const defAddress, bool tempAdd)
+static ipaddr_t ipAddress(trunknode_t& tn, ipaddr_t const defAddress, bool tempAdd)
 {
     if (tn.isBlank()) {
 	if (defAddress != myIp())
@@ -694,14 +694,14 @@ static uint32_t ipAddress(trunknode_t& tn, uint32_t const defAddress, bool tempA
 	sockaddr_in const* const in = getAddr(tn);
 
 	if (in)
-	    return ntohl(in->sin_addr.s_addr);
+	    return ipaddr_t(ntohl(in->sin_addr.s_addr));
 	else if (!lastNodeTableDownloadTime() && tempAdd) {
 	    updateAddr(tn, nodename_t(-1), defAddress);
-	    syslog(LOG_WARNING, "Temporarily adding %d.%d.%d.%d for node 0x%02x%02x", defAddress >> 24,
-		   (uint8_t) (defAddress >> 16), (uint8_t) (defAddress >> 8), (uint8_t) defAddress, tn.trunk(), tn.node());
+	    syslog(LOG_WARNING, "Temporarily adding %s for node 0x%02x%02x",
+		    defAddress.str().c_str(), tn.trunk(), tn.node());
 	    return defAddress;
 	} else
-	    return 0;
+	    return ipaddr_t();
     }
 }
 
@@ -761,7 +761,7 @@ static TaskPool* getTaskPool(nodename_t name)
     return 0;
 }
 
-void handleAcnetPacket(AcnetHeader& hdr, uint32_t const ip)
+void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 {
     uint16_t const flags = hdr.flags();
     uint16_t pktType = (flags & (0xf800 | ACNET_FLG_TYPE | ACNET_FLG_CAN | ACNET_FLG_MLT));
@@ -772,38 +772,38 @@ void handleAcnetPacket(AcnetHeader& hdr, uint32_t const ip)
 	dumpPacket("Incoming", hdr, hdr.msg(), hdr.msgLen());
 
     trunknode_t ctn = hdr.client();
-    uint32_t const inClient = ipAddress(ctn, ip, pktType == ACNET_FLG_REQ);
+    ipaddr_t const inClient = ipAddress(ctn, ip, pktType == ACNET_FLG_REQ);
 
-    if (!inClient) {
+    if (!inClient.isValid()) {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Dropping packet from %d.%d.%d.%d -- bad client node 0x%02x%02x",
-		   ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip, ctn.trunk(), ctn.node());
+	    syslog(LOG_WARNING, "Dropping packet from %s -- bad client node 0x%02x%02x",
+		   ip.str().c_str(), ctn.trunk(), ctn.node());
 	return;
     }
 
     // The client node cannot be a multicast node. We also don't allow
     // packets from multicast IP addresses.
 
-    if (IN_MULTICAST(inClient) || IN_MULTICAST(ip)) {
+    if (inClient.isMulticast() || ip.isMulticast()) {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Dropping packet from multicast node 0x%02x%02x (ip = %d.%d.%d.%d)", ctn.trunk(), ctn.node(),
-		   ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip);
+	    syslog(LOG_WARNING, "Dropping packet from multicast node 0x%02x%02x (ip = %s)",
+			ctn.trunk(), ctn.node(), ip.str().c_str());
 	return;
     }
 
     hdr.setClient(ctn);
 
     trunknode_t stn = hdr.server();
-    uint32_t const inServer = ipAddress(stn, myIp(), pktType == ACNET_FLG_REQ);
+    ipaddr_t const inServer = ipAddress(stn, myIp(), pktType == ACNET_FLG_REQ);
 
-    if (!inServer) {
+    if (!inServer.isValid()) {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Dropping packet from %d.%d.%d.%d -- bad server node 0x%02x%02x",
-		   ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip, ctn.trunk(), ctn.node());
+	    syslog(LOG_WARNING, "Dropping packet from %s -- bad server node 0x%02x%02x",
+		    ip.str().c_str(), ctn.trunk(), ctn.node());
 	return;
     }
 
-    bool mcast = IN_MULTICAST(inServer);
+    bool mcast = inServer.isMulticast();
     TaskPool *taskPool = 0;
 
     switch (pktType) {
@@ -872,8 +872,8 @@ void handleAcnetPacket(AcnetHeader& hdr, uint32_t const ip)
 
      default:
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Invalid 'flags' field in ACNET header (from %d.%d.%d.%d) -- 0x%04x",
-		   ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip, flags);
+	    syslog(LOG_WARNING, "Invalid 'flags' field in ACNET header (from %s) -- 0x%04x",
+		    ip.str().c_str(), flags);
 	break;
     }
 }
@@ -881,14 +881,13 @@ void handleAcnetPacket(AcnetHeader& hdr, uint32_t const ip)
 // This function breaks the packet up (if necessary), and routes the data to
 // the packet handler
 
-static void handleNetworkDatagram(uint8_t const* const buf, ssize_t const len, uint32_t const ip)
+static void handleNetworkDatagram(uint8_t const* const buf, ssize_t const len, ipaddr_t const ip)
 {
     // If the packet is an odd length, log it and drop it.
 
     if (len & 1) {
       	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Odd-sized ACNET packet received from %d.%d.%d.%d", ip >> 24,
-		   (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip);
+	    syslog(LOG_WARNING, "Odd-sized ACNET packet received from %s", ip.str().c_str());
 	return;
     }
 
@@ -950,9 +949,9 @@ static bool handleClientCommand()
 
 		trunknode_t const node = cmd->addr();
 		nodename_t const name = cmd->nodeName();
-		uint32_t const addr = cmd->ipAddr();
+		ipaddr_t const addr = cmd->ipAddr();
 
-		if (node.isBlank() && name.isBlank() && !addr)
+		if (node.isBlank() && name.isBlank() && addr.value() == 0)
 		    setLastNodeTableDownloadTime();
 		else
 		    updateAddr(node, name, addr);
@@ -1060,28 +1059,26 @@ static bool handleClientCommand()
 // the largest valid ACNET packet length.
 
 static bool isPacketSizeValid(size_t const packetOffset, uint16_t const packetSize, size_t const datagramSize,
-			      uint32_t const ip)
+			      ipaddr_t const ip)
 {
     if (packetSize < sizeof(AcnetHeader)) {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Packet (from %d.%d.%d.%d) can't be smaller than AcnetHeader", ip >> 24,
-		   (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip);
+	    syslog(LOG_WARNING, "Packet (from %s) can't be smaller than AcnetHeader", ip.str().c_str());
 	return false;
     }
 
     if (packetOffset + packetSize > datagramSize) {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "End of packet (from %d.%d.%d.%d) was corrupted (header specified more "
-		   "data (%d bytes) than what was sent (%d bytes))", ip >> 24, (uint8_t) (ip >> 16),
-		   (uint8_t) (ip >> 8), (uint8_t) ip, packetSize, (int)(datagramSize - packetOffset));
+	    syslog(LOG_WARNING, "End of packet (from %s) was corrupted (header specified more "
+		   "data (%d bytes) than what was sent (%d bytes))", ip.str().c_str(),
+		   packetSize, (int)(datagramSize - packetOffset));
 	return false;
     }
 
     if (packetSize > INTERNAL_ACNET_PACKET_SIZE) {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Too long packet (%d bytes > %d max) sent by %d.%d.%d.%d -- skipping packet",
-		   packetSize, INTERNAL_ACNET_PACKET_SIZE, ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8),
-		   (uint8_t) ip);
+	    syslog(LOG_WARNING, "Too long packet (%d bytes > %d max) sent by %s -- skipping packet",
+		   packetSize, INTERNAL_ACNET_PACKET_SIZE, ip.str().c_str());
 	return false;
     }
     return true;
@@ -1297,12 +1294,11 @@ int main(int argc, char** argv)
 
 	if (getResources()) {
 	    {
-		uint32_t const ip = myIp();
+		ipaddr_t const ip = myIp();
 
 		syslog(LOG_NOTICE, "ACNET (" THIS_PLATFORM "-" THIS_ARCH ") "
-		       "services are now active on host %d.%d.%d.%d:%u",
-		       ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8),
-		       (uint8_t) ip, acnetPort);
+		       "services are now active on host %s:%u",
+		       ip.str().c_str(), acnetPort);
 
 		// Add our node and address if passed on the comand line
 
@@ -1410,7 +1406,7 @@ int main(int argc, char** argv)
 
 			if ((len = readNextPacket(buf, sizeof(buf), in)) > 0) {
 			    if (in.sin_port == ntohs(acnetPort))
-				handleNetworkDatagram(buf, len, ntohl(in.sin_addr.s_addr));
+				handleNetworkDatagram(buf, len, ipaddr_t(ntohl(in.sin_addr.s_addr)));
 			} else
 			    pfd[0].revents &= ~POLLIN;
 		    }

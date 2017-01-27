@@ -32,7 +32,7 @@ struct TypedTcpBuffer : public TcpBuffer<Typ> {
     T& get() { return reinterpret_cast<T&>(this->data); }
 };
 
-RawProtocolHandler::RawProtocolHandler(int sTcp, int sCmd, int sData, nodename_t tcpNode, uint32_t remoteAddr) :
+RawProtocolHandler::RawProtocolHandler(int sTcp, int sCmd, int sData, nodename_t tcpNode, ipaddr_t remoteAddr) :
 					TcpClientProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr)
 {
 }

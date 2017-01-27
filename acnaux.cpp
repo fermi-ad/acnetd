@@ -165,8 +165,6 @@ void AcnetTask::nodeStatsHandler(rpyid_t id, uint8_t subType)
 
     secToMs(now().tv_sec - statTimeBase, &rpy.time);
 
-    //IpInfo *ipInfo  = findNodeInfo(node);
-
     rpy.count[0] = htoas(0);
     rpy.count[1] = htoas(0);
     rpy.count[2] = htoas(0);
@@ -219,7 +217,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 			    updateAddr(trunknode_t((trunk_t) (trunkIndex + ACNET_MIN_TRUNK),
 						   (node_t) ii),
 				       nodename_t(atohl(name[ii])),
-				       ntohl(addr[ii]));
+				       ipaddr_t(ntohl(addr[ii])));
 			return;
 		    } else if (((dataSize - 1) / 2) == numEntries) {
 			// Handle the older apps that only send ip addresses
@@ -228,7 +226,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 			for (int ii = 0; ii < numEntries; ++ii)
 			    updateAddr(trunknode_t((trunk_t) (trunkIndex + ACNET_MIN_TRUNK),
 						   (node_t) ii),
-				       nodename_t(), ntohl(addr[ii]));
+				       nodename_t(), ipaddr_t(ntohl(addr[ii])));
 			return;
 		    }
 		}
