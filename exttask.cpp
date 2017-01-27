@@ -37,7 +37,7 @@ bool ExternalTask::checkResult(ssize_t const res)
 	// At this point we've had an error occur so lets
 	// check to see if we think the client is still alive
 
-	++statLostPkt;
+	++stats.lostPkt;
 	return stillAlive();
     }
     return true;
@@ -164,8 +164,8 @@ void ExternalTask::handleSend(SendCommand const *cmd, size_t const len)
 	if (getAddr(node)) {
 	    sendUsmToNetwork(node, cmd->task(), taskPool().nodeName(),
 			     id(), cmd->data(), len - sizeof(SendCommand));
-	    ++statUsmXmt;
-	    ++taskPool().statUsmXmt;
+	    ++stats.usmXmt;
+	    ++taskPool().stats.usmXmt;
 	} else
 	    ack.setStatus(ACNET_NO_NODE);
     } else
@@ -213,12 +213,12 @@ void ExternalTask::handleSendRequest(SendRequestCommand const *cmd, size_t const
 				      sizeof(AcnetHeader) + MSG_LENGTH(msgLen));
 
 		sendDataToNetwork(hdr, cmd->data(), msgLen);
-		++statReqXmt;
-		++taskPool().statReqXmt;
-		ack.reqid = htons(req->id());
+		++stats.reqXmt;
+		++taskPool().stats.reqXmt;
+		ack.setRequestId(req->id());
 	    } catch (...) {
 		ack.setStatus(ACNET_NLM);
-		++taskPool().statReqQLimit;
+		++taskPool().stats.reqQLimit;
 	    }
 	} else
 	    ack.setStatus(ACNET_NO_NODE);
@@ -255,12 +255,12 @@ void ExternalTask::handleSendRequestWithTimeout(SendRequestWithTimeoutCommand co
 				      sizeof(AcnetHeader) + MSG_LENGTH(msgLen));
 
 		sendDataToNetwork(hdr, cmd->data(), msgLen);
-		++statReqXmt;
-		++taskPool().statReqXmt;
-		ack.reqid = htons(req->id());
+		++stats.reqXmt;
+		++taskPool().stats.reqXmt;
+		ack.setRequestId(req->id());
 	    } catch (...) {
 		ack.setStatus(ACNET_NLM);
-		++taskPool().statReqQLimit;
+		++taskPool().stats.reqQLimit;
 	    }
 	} else
 	    ack.setStatus(ACNET_NO_NODE);
@@ -351,25 +351,17 @@ void ExternalTask::handleTaskPid()
 {
     AckTaskPid ack;
 
-    ack.pid = stillAlive() ? htonl(pid()) : 0;
+    ack.setPid(stillAlive() ? pid() : 0);
+
     if (!sendAckToClient(&ack, sizeof(ack)))
 	taskPool().removeTask(this);
 }
 
-void ExternalTask::handleGlobalStats()
+void ExternalTask::handleNodeStats()
 {
-    // This function handles the sending of a USM (done via the smdSend command.)
+    AckNodeStats ack;
 
-    AckGlobalStats ack;
-
-    ack.stats.statUsmRcv = htonl((uint32_t) taskPool().statUsmRcv);
-    ack.stats.statReqRcv = htonl((uint32_t) taskPool().statReqRcv);
-    ack.stats.statRpyRcv = htonl((uint32_t) taskPool().statRpyRcv);
-    ack.stats.statUsmXmt = htonl((uint32_t) taskPool().statUsmXmt);
-    ack.stats.statReqXmt = htonl((uint32_t) taskPool().statReqXmt);
-    ack.stats.statRpyXmt = htonl((uint32_t) taskPool().statRpyXmt);
-    ack.stats.statReqQLimit = htonl((uint32_t) taskPool().statReqQLimit);
-
+    ack.setStats(taskPool().stats);
     if (!sendAckToClient(&ack, sizeof(ack)))
 	taskPool().removeTask(this);
 }
@@ -388,7 +380,7 @@ void ExternalTask::handleRenameTask(RenameTaskCommand const *cmd)
 void ExternalTask::handleUnknownCommand(CommandHeader const *cmd, size_t const len)
 {
     syslog(LOG_WARNING, "task %s sent unknown command: %04x length:%ld",
-	    rtoa(handle().raw()), uint16_t(cmd->cmd()), len);
+		handle().str(), uint16_t(cmd->cmd()), len);
 
     if (!sendErrorToClient(ACNET_BUG))
 	taskPool().removeTask(this);
@@ -451,8 +443,8 @@ void ExternalTask::handleClientCommand(CommandHeader const* const cmd, size_t co
          handleTaskPid();
          break;
 
-      case CommandList::cmdGlobalStats:
-         handleGlobalStats();
+      case CommandList::cmdNodeStats:
+         handleNodeStats();
          break;
 
       case CommandList::cmdRenameTask:

@@ -71,8 +71,8 @@ void RequestPool::cancelReqToNode(trunknode_t const tn)
 
 	    TaskInfo& task = req->task();
 	    bool failed = !task.sendDataToClient(&hdr);
-	    ++task.statRpyRcv;
-	    ++task.taskPool().statRpyRcv;
+	    ++task.stats.rpyRcv;
+	    ++task.taskPool().stats.rpyRcv;
 
 	    // Clean up our local resources associated with the request.
 
@@ -105,8 +105,8 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
 				  req->task().id(), id, sizeof(AcnetHeader));
 
 	    (void) (sendDataToNetwork(hdr, 0, 0));
-	    ++req->task().statUsmXmt;
-	    ++req->task().taskPool().statUsmXmt;
+	    ++req->task().stats.usmXmt;
+	    ++req->task().taskPool().stats.usmXmt;
 
 	    if (sendLastReply) {
 		// Tell the requestor that the open request is over
@@ -117,8 +117,8 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
 					sizeof(AcnetHeader));
 
 		(void) req->task().sendDataToClient(&hdr);
-		++req->task().statRpyRcv;
-		++req->task().taskPool().statRpyRcv;
+		++req->task().stats.rpyRcv;
+		++req->task().taskPool().stats.rpyRcv;
 	    }
 	}
 #ifdef DEBUG
@@ -147,8 +147,8 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	    TaskInfo& task = req->task();
 	    bool failed = !task.sendDataToClient(&hdr);
 
-	    ++task.statRpyRcv;
-	    ++task.taskPool().statRpyRcv;
+	    ++task.stats.rpyRcv;
+	    ++task.taskPool().stats.rpyRcv;
 	    cancelReqId(req->id(), true);
 
 	    if (failed)

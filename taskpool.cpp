@@ -199,8 +199,8 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 		    throw ACNET_NLM;
 	    }
 
-	    ack.id = task->id();
-	    ack.clientName = htonl(clientName.raw());
+	    ack.setTaskId(task->id());
+	    ack.setClientName(clientName);
 	} else
 	    throw ACNET_INVARG;
 
@@ -308,19 +308,6 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
     return 0;
 }
 
-typedef struct {
-    uint16_t taskId;
-    uint32_t hTask;
-    uint16_t statCnts[6];
-} __attribute__((packed)) TaskStats;
-
-typedef struct {
-    time48_t statsTime;
-    uint16_t taskCount;
-    TaskStats stats[];
-
-} __attribute__((packed)) TaskStatsReply;
-
 bool TaskPool::rename(TaskInfo* task, taskhandle_t th)
 {
     // If the handle isn't a multi-client handle (i.e. it isn't associated with a multicast address), then only one client
@@ -358,6 +345,19 @@ bool TaskPool::rename(TaskInfo* task, taskhandle_t th)
 
 size_t TaskPool::fillBufferWithTaskStats(uint8_t subType, void* buf)
 {
+    typedef struct {
+	uint16_t taskId;
+	uint32_t hTask;
+	uint16_t statCnts[6];
+    } __attribute__((packed)) TaskStats;
+
+    typedef struct {
+	time48_t statsTime;
+	uint16_t taskCount;
+	TaskStats stats[];
+
+    } __attribute__((packed)) TaskStatsReply;
+
     removeInactiveTasks();
 
     TaskStatsReply* const rpy = (TaskStatsReply*) buf;
@@ -377,21 +377,21 @@ size_t TaskPool::fillBufferWithTaskStats(uint8_t subType, void* buf)
 	if (task) {
 	    ts->taskId = htoas(task->id());
 	    ts->hTask = htoal(task->handle().raw());
-	    ts->statCnts[0] = htoas((uint16_t) task->statUsmXmt);
-	    ts->statCnts[1] = htoas((uint16_t) task->statReqXmt);
-	    ts->statCnts[2] = htoas((uint16_t) task->statRpyXmt);
-	    ts->statCnts[3] = htoas((uint16_t) task->statUsmRcv);
-	    ts->statCnts[4] = htoas((uint16_t) task->statReqRcv);
-	    ts->statCnts[5] = htoas((uint16_t) task->statRpyRcv);
+	    ts->statCnts[0] = htoas((uint16_t) task->stats.usmXmt);
+	    ts->statCnts[1] = htoas((uint16_t) task->stats.reqXmt);
+	    ts->statCnts[2] = htoas((uint16_t) task->stats.rpyXmt);
+	    ts->statCnts[3] = htoas((uint16_t) task->stats.usmRcv);
+	    ts->statCnts[4] = htoas((uint16_t) task->stats.reqRcv);
+	    ts->statCnts[5] = htoas((uint16_t) task->stats.rpyRcv);
 
 	    if (subType & 1) {
 		taskStatTimeBase = now().tv_sec;
-		task->statUsmXmt.reset();
-		task->statReqXmt.reset();
-		task->statRpyXmt.reset();
-		task->statUsmRcv.reset();
-		task->statReqRcv.reset();
-		task->statRpyRcv.reset();
+		task->stats.usmXmt.reset();
+		task->stats.reqXmt.reset();
+		task->stats.rpyXmt.reset();
+		task->stats.usmRcv.reset();
+		task->stats.reqRcv.reset();
+		task->stats.rpyRcv.reset();
 	    }
 
 	    ts++;
@@ -482,12 +482,12 @@ void TaskPool::generateNodeDataReport(std::ostream& os)
 	    char const* descr;
 	    StatCounter const* count;
 	} const data[] = {
-	    { "Received USMs", &statUsmRcv },
-	    { "Received Requests", &statReqRcv },
-	    { "Received Replies", &statRpyRcv },
-	    { "Transmitted USMs", &statUsmXmt },
-	    { "Transmitted Requests", &statReqXmt },
-	    { "Transmitted Replies", &statRpyXmt },
+	    { "Received USMs", &stats.usmRcv },
+	    { "Received Requests", &stats.reqRcv },
+	    { "Received Replies", &stats.rpyRcv },
+	    { "Transmitted USMs", &stats.usmXmt },
+	    { "Transmitted Requests", &stats.reqXmt },
+	    { "Transmitted Replies", &stats.rpyXmt },
 	};
 
 	for (size_t ii = 0; ii < sizeof(data) / sizeof(*data); ++ii)

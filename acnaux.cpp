@@ -35,12 +35,12 @@ void AcnetTask::packetCountHandler(rpyid_t id)
 
     StatCounter sum;
 
-    sum += taskPool().statUsmXmt;
-    sum += taskPool().statReqXmt;
-    sum += taskPool().statRpyXmt;
-    sum += taskPool().statUsmRcv;
-    sum += taskPool().statReqRcv;
-    sum += taskPool().statRpyRcv;
+    sum += taskPool().stats.usmXmt;
+    sum += taskPool().stats.reqXmt;
+    sum += taskPool().stats.rpyXmt;
+    sum += taskPool().stats.usmRcv;
+    sum += taskPool().stats.reqRcv;
+    sum += taskPool().stats.rpyRcv;
 
     rpy.pktCount = htoal(sum);
 
@@ -145,12 +145,12 @@ void AcnetTask::taskResourcesHandler(rpyid_t id)
 void AcnetTask::resetStats()
 {
     statTimeBase = now().tv_sec;
-    taskPool().statUsmXmt.reset();
-    taskPool().statReqXmt.reset();
-    taskPool().statRpyXmt.reset();
-    taskPool().statUsmRcv.reset();
-    taskPool().statReqRcv.reset();
-    taskPool().statRpyRcv.reset();
+    taskPool().stats.usmXmt.reset();
+    taskPool().stats.reqXmt.reset();
+    taskPool().stats.rpyXmt.reset();
+    taskPool().stats.usmRcv.reset();
+    taskPool().stats.reqRcv.reset();
+    taskPool().stats.rpyRcv.reset();
 }
 
 void AcnetTask::nodeStatsHandler(rpyid_t id, uint8_t subType)
@@ -169,12 +169,12 @@ void AcnetTask::nodeStatsHandler(rpyid_t id, uint8_t subType)
     rpy.count[1] = htoas(0);
     rpy.count[2] = htoas(0);
     rpy.count[3] = htoas(0);
-    rpy.count[4] = htoas((uint16_t) taskPool().statUsmXmt);
-    rpy.count[5] = htoas((uint16_t) taskPool().statReqXmt);
-    rpy.count[6] = htoas((uint16_t) taskPool().statRpyXmt);
-    rpy.count[7] = htoas((uint16_t) taskPool().statUsmRcv);
-    rpy.count[8] = htoas((uint16_t) taskPool().statReqRcv);
-    rpy.count[9] = htoas((uint16_t) taskPool().statRpyRcv);
+    rpy.count[4] = htoas((uint16_t) taskPool().stats.usmXmt);
+    rpy.count[5] = htoas((uint16_t) taskPool().stats.reqXmt);
+    rpy.count[6] = htoas((uint16_t) taskPool().stats.rpyXmt);
+    rpy.count[7] = htoas((uint16_t) taskPool().stats.usmRcv);
+    rpy.count[8] = htoas((uint16_t) taskPool().stats.reqRcv);
+    rpy.count[9] = htoas((uint16_t) taskPool().stats.rpyRcv);
 
     if (subType)
 	resetStats();

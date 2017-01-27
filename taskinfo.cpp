@@ -71,13 +71,13 @@ void TaskInfo::report(std::ostream& os) const
 	"\t\t\t<tr><td class=\"label\">PID</td><td>" << pid() << "</td></tr>\n" <<
 	"\t\t\t<tr class=\"even\"><td class=\"label\">Pending Request</td><td>" << pendingRequests << "</td></tr>\n" <<
 	"\t\t\t<tr><td class=\"label\">Max Pending Requests</td><td>" << maxPendingRequests << "</td></tr>\n" <<
-	"\t\t\t<tr class=\"even\"><td class=\"label\">USMs Transmitted</td><td>" << (uint32_t) statUsmXmt << "</td></tr>\n" <<
-	"\t\t\t<tr><td class=\"label\">Requests Transmitted</td><td>" << (uint32_t) statReqXmt << "</td></tr>\n" <<
-	"\t\t\t<tr class=\"even\"><td class=\"label\">Replies Transmitted</td><td>" << (uint32_t) statRpyXmt << "</td></tr>\n" <<
-	"\t\t\t<tr><td class=\"label\">USMs Received</td><td>" << (uint32_t) statUsmRcv << "</td></tr>\n" <<
-	"\t\t\t<tr class=\"even\"><td class=\"label\">Requests Received</td><td>" << (uint32_t) statReqRcv << "</td></tr>\n" <<
-	"\t\t\t<tr><td class=\"label\">Replies Received</td><td>" << (uint32_t) statRpyRcv << "</td></tr>\n" <<
-	"\t\t\t<tr class=\"even\"><td class=\"label\">Dropped Packets</td><td>" << (uint32_t) statLostPkt << "</td></tr>\n" <<
+	"\t\t\t<tr class=\"even\"><td class=\"label\">USMs Transmitted</td><td>" << (uint32_t) stats.usmXmt << "</td></tr>\n" <<
+	"\t\t\t<tr><td class=\"label\">Requests Transmitted</td><td>" << (uint32_t) stats.reqXmt << "</td></tr>\n" <<
+	"\t\t\t<tr class=\"even\"><td class=\"label\">Replies Transmitted</td><td>" << (uint32_t) stats.rpyXmt << "</td></tr>\n" <<
+	"\t\t\t<tr><td class=\"label\">USMs Received</td><td>" << (uint32_t) stats.usmRcv << "</td></tr>\n" <<
+	"\t\t\t<tr class=\"even\"><td class=\"label\">Requests Received</td><td>" << (uint32_t) stats.reqRcv << "</td></tr>\n" <<
+	"\t\t\t<tr><td class=\"label\">Replies Received</td><td>" << (uint32_t) stats.rpyRcv << "</td></tr>\n" <<
+	"\t\t\t<tr class=\"even\"><td class=\"label\">Dropped Packets</td><td>" << (uint32_t) stats.lostPkt << "</td></tr>\n" <<
 	"\t\t\t<tr><td class=\"label\">Connected</td><td>";
 
     printElapsedTime(os, now().tv_sec - boot);
