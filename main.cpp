@@ -85,7 +85,7 @@ struct CmdLineArgs {
 
 		     case 'n':
 			if (!*curPtr) {
-			    if (ii < argc - 1)
+			    if (ii < argc - 1 && argv[ii + 1][0] != '-')
 				curPtr = argv[++ii];
 			    else {
 				printf("missing trunk/node argument to '-n' option\n\n");
@@ -100,7 +100,7 @@ struct CmdLineArgs {
 
 		     case 'H':
 			if (!*curPtr) {
-			    if (ii < argc - 1)
+			    if (ii < argc - 1 && argv[ii + 1][0] != '-')
 				curPtr = argv[++ii];
 			    else {
 				printf("missing name argument to '-H' option\n\n");
@@ -118,7 +118,7 @@ struct CmdLineArgs {
 		     case 'a':
 			alternate = true;
 			if (!*curPtr) {
-			    if (ii < argc - 1)
+			    if (ii < argc - 1 && isdigit(argv[ii + 1][0]))
 				curPtr = argv[++ii];
 			    else {
 				printf("missing port argument to '-a' option\n\n");
@@ -136,7 +136,7 @@ struct CmdLineArgs {
 		     case 't':
 			tcpClients = true;
 			if (!*curPtr) {
-			    if (ii < argc - 1)
+			    if (ii < argc - 1 && argv[ii + 1][0] != '-')
 				curPtr = argv[++ii];
 			    else {
 				printf("missing name argument to '-t' option\n\n");
@@ -149,7 +149,7 @@ struct CmdLineArgs {
 
 		     case 'r':
 			if (!*curPtr) {
-			    if (ii < argc - 1)
+			    if (ii < argc - 1 && argv[ii + 1][0] != '-')
 				curPtr = argv[++ii];
 			    else {
 				printf("missing task name list to '-r' option\n\n");
