@@ -23,8 +23,8 @@ void InternalTask::sendReplyCore(rpyid_t rpyId, void const* d, uint16_t n,
 			    rpy->taskName(), rpy->taskId(), rpy->reqId(),
 			    sizeof(AcnetHeader) + MSG_LENGTH(n));
 	sendDataToNetwork(hdr, d, n);
-	++statRpyXmt;
-	++taskPool().statRpyXmt;
+	++stats.rpyXmt;
+	++taskPool().stats.rpyXmt;
     }
 }
 

@@ -182,6 +182,66 @@ class ipaddr_t {
     bool operator!= (ipaddr_t const o) const { return addr != o.addr; }
 };
 
+class StatCounter {
+    uint32_t counter;
+
+ public:
+    inline explicit StatCounter(uint32_t initialValue = 0)
+    {
+	counter = initialValue;
+    }
+
+    inline StatCounter& operator++()
+    {
+	if (counter < std::numeric_limits<uint32_t>::max())
+	    ++counter;
+
+	return *this;
+    }
+
+    inline StatCounter& operator+=(StatCounter const& c)
+    {
+	uint32_t tmp = counter + c.counter;
+	counter = tmp < counter ? (uint32_t) std::numeric_limits<uint32_t>::max() : tmp;
+	return *this;
+    }
+
+    inline void reset()
+    {
+	counter = 0;
+    }
+
+    inline operator uint16_t() const
+    {
+	return std::min(counter, (uint32_t) std::numeric_limits<uint16_t>::max());
+    }
+
+    inline operator uint32_t() const
+    {
+	return counter;
+    }
+};
+
+struct TaskStats {
+    StatCounter usmRcv;
+    StatCounter reqRcv;
+    StatCounter rpyRcv;
+    StatCounter usmXmt;
+    StatCounter reqXmt;
+    StatCounter rpyXmt;
+    StatCounter lostPkt;
+};
+
+struct NodeStats {
+    StatCounter usmRcv;
+    StatCounter reqRcv;
+    StatCounter rpyRcv;
+    StatCounter usmXmt;
+    StatCounter reqXmt;
+    StatCounter rpyXmt;
+    StatCounter reqQLimit;
+};
+
 std::string rtos(nodename_t);
 
 #include "trunknode.h"
@@ -320,8 +380,7 @@ enum class CommandList : uint16_t {
 	cmdLocalNode 			= be16(13),
 
 	cmdTaskPid			= be16(14),
-	cmdGlobalStats			= be16(15),
-	cmdAckGlobalStats		= be16(16),
+	cmdNodeStats			= be16(15),
 
 	cmdDisconnectSingle		= be16(17),
 
@@ -346,7 +405,7 @@ enum class AckList : uint16_t {
 	ackNodeLookup			= be16(5),
 
 	ackTaskPid			= be16(6),
-	ackGlobalStats			= be16(7),
+	ackNodeStats			= be16(7),
 };
 
 // This is the command header for all commands send from the client to
@@ -648,23 +707,14 @@ struct TaskPidCommand : public CommandHeaderBase<CommandList::cmdTaskPid> {
 
 ASSERT_SIZE(TaskPidCommand, 14)
 
-struct GlobalStats {
-    uint32_t statUsmRcv;
-    uint32_t statReqRcv;
-    uint32_t statRpyRcv;
-    uint32_t statUsmXmt;
-    uint32_t statReqXmt;
-    uint32_t statRpyXmt;
-    uint32_t statReqQLimit;
+struct NodeStatsCommand :
+    public CommandHeaderBase<CommandList::cmdNodeStats> {
 } __attribute__((packed));
 
-struct GlobalStatsCommand :
-    public CommandHeaderBase<CommandList::cmdGlobalStats> {
-} __attribute__((packed));
-
-ASSERT_SIZE(GlobalStatsCommand, 10)
+ASSERT_SIZE(NodeStatsCommand, 10)
 
 class AckHeader {
+ private:
     AckList const cmd_;
     int16_t status_;
 
@@ -678,6 +728,8 @@ class AckHeader {
     void setStatus(status_t status) { status_ = htons(status.raw()); }
 } __attribute__((packed));
 
+ASSERT_SIZE(AckHeader, 4)
+
 // This command is only sent from the acnet task to the clients to
 // acknowledge a command. This class contains a status field to pass
 // the success or failure codes back to the client.
@@ -686,42 +738,101 @@ struct Ack : public AckHeader {
     Ack() : AckHeader(AckList::ackAck) { }
 } __attribute__((packed));
 
+ASSERT_SIZE(Ack, 4)
+
 struct AckConnect : public AckHeader {
+ private:
+    acnet_taskid_t id_;
+    uint32_t clientName_;
+
+ public:
     AckConnect() : AckHeader(AckList::ackConnect) { }
-    acnet_taskid_t id;
-    uint32_t clientName;
+    void setTaskId(acnet_taskid_t id) { id_ = id; }
+    void setClientName(taskhandle_t clientName) { clientName_ = htonl(clientName.raw()); }
 } __attribute__((packed));
+
+ASSERT_SIZE(AckConnect, 9)
 
 struct AckSendRequest : public AckHeader {
+ private:
+    reqid_t reqid_;
+
+ public:
     AckSendRequest() : AckHeader(AckList::ackSendRequest) { }
-    reqid_t reqid;
+    void setRequestId(reqid_t reqid) { reqid_ = htons(reqid); }
 } __attribute__((packed));
+
+ASSERT_SIZE(AckSendRequest, 6)
 
 struct AckSendReply : public AckHeader {
-    AckSendReply() : AckHeader(AckList::ackSendReply) { }
+ private:
     uint16_t flags;
+
+ public:
+    AckSendReply() : AckHeader(AckList::ackSendReply) { }
 } __attribute__((packed));
+
+ASSERT_SIZE(AckSendReply, 6)
 
 struct AckNameLookup : public AckHeader {
-    AckNameLookup() : AckHeader(AckList::ackNameLookup) { }
+ private:
     trunk_t trunk;
     node_t node;
+
+ public:
+    AckNameLookup() : AckHeader(AckList::ackNameLookup) { }
+    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk(); node = addr.node(); }
 } __attribute__((packed));
+
+ASSERT_SIZE(AckNameLookup, 6)
 
 struct AckNodeLookup : public AckHeader {
+ private:
+    uint32_t name_;
+
+ public:
     AckNodeLookup() : AckHeader(AckList::ackNodeLookup) { }
-    uint32_t name;
+    void setNodeName(nodename_t name) { name_ = htonl(name.raw()); }
 } __attribute__((packed));
+
+ASSERT_SIZE(AckNodeLookup, 8)
 
 struct AckTaskPid : public AckHeader {
+ private:
+    uint32_t pid_;
+
+ public:
     AckTaskPid() : AckHeader(AckList::ackTaskPid) { }
-    pid_t pid;
+    void setPid(pid_t pid) { pid_ = htonl(pid); }
 } __attribute__((packed));
 
-struct AckGlobalStats : public AckHeader {
-    AckGlobalStats() : AckHeader(AckList::ackGlobalStats) { }
-    GlobalStats	stats;
+ASSERT_SIZE(AckTaskPid, 8)
+
+struct AckNodeStats : public AckHeader {
+ private:
+    uint32_t statUsmRcv;
+    uint32_t statReqRcv;
+    uint32_t statRpyRcv;
+    uint32_t statUsmXmt;
+    uint32_t statReqXmt;
+    uint32_t statRpyXmt;
+    uint32_t statReqQLimit;
+
+ public:
+    AckNodeStats() : AckHeader(AckList::ackNodeStats) { }
+    void setStats(NodeStats& stats)
+    {
+	statUsmRcv = htonl((uint32_t) stats.usmRcv);
+	statReqRcv = htonl((uint32_t) stats.reqRcv);
+	statRpyRcv = htonl((uint32_t) stats.rpyRcv);
+	statUsmXmt = htonl((uint32_t) stats.usmXmt);
+	statReqXmt = htonl((uint32_t) stats.reqXmt);
+	statRpyXmt = htonl((uint32_t) stats.rpyXmt);
+	statReqQLimit = htonl((uint32_t) stats.reqQLimit);
+    }
 } __attribute__((packed));
+
+ASSERT_SIZE(AckNodeStats, 32)
 
 // Asynchronous message passing to client processes
 
@@ -737,54 +848,12 @@ struct AcnetClientMessage {
     pid_t pid;
     uint32_t task;
     uint8_t type;
-    union args {
-    } args;
 
     AcnetClientMessage() : pid(0), task(0), type(Ping) {}
     AcnetClientMessage(taskhandle_t task, uint8_t type) : task(task.raw()), type(type) {}
 } __attribute__((packed));
 
 // Project-wide types...
-
-class StatCounter {
-    uint32_t counter;
-
- public:
-    inline explicit StatCounter(uint32_t initialValue = 0)
-    {
-	counter = initialValue;
-    }
-
-    inline StatCounter& operator++()
-    {
-	if (counter < std::numeric_limits<uint32_t>::max())
-	    ++counter;
-
-	return *this;
-    }
-
-    inline StatCounter& operator+=(StatCounter const& c)
-    {
-	uint32_t tmp = counter + c.counter;
-	counter = tmp < counter ? (uint32_t) std::numeric_limits<uint32_t>::max() : tmp;
-	return *this;
-    }
-
-    inline void reset()
-    {
-	counter = 0;
-    }
-
-    inline operator uint16_t() const
-    {
-	return std::min(counter, (uint32_t) std::numeric_limits<uint16_t>::max());
-    }
-
-    inline operator uint32_t() const
-    {
-	return counter;
-    }
-};
 
 class TaskInfo;
 
@@ -1034,13 +1103,7 @@ class TaskInfo : private Noncopyable {
  public:
     friend class TaskPool;
 
-    mutable StatCounter statUsmRcv;
-    mutable StatCounter statReqRcv;
-    mutable StatCounter statRpyRcv;
-    mutable StatCounter statUsmXmt;
-    mutable StatCounter statReqXmt;
-    mutable StatCounter statRpyXmt;
-    mutable StatCounter statLostPkt;
+    mutable TaskStats stats;
 
     TaskInfo(TaskPool&, taskhandle_t);
     virtual ~TaskInfo() {}
@@ -1122,7 +1185,7 @@ class ExternalTask : public TaskInfo {
     virtual void handleSendRequestWithTimeout(SendRequestWithTimeoutCommand const*, size_t const);
     virtual void handleSend(SendCommand const *, size_t const);
     virtual void handleTaskPid();
-    virtual void handleGlobalStats();
+    virtual void handleNodeStats();
     virtual void handleKeepAlive();
     virtual void handleUnknownCommand(CommandHeader const *, size_t len);
 
@@ -1343,13 +1406,7 @@ class TaskPool : private Noncopyable {
     RequestPool reqPool;
     ReplyPool rpyPool;
 
-    mutable StatCounter statUsmRcv;
-    mutable StatCounter statReqRcv;
-    mutable StatCounter statRpyRcv;
-    mutable StatCounter statUsmXmt;
-    mutable StatCounter statReqXmt;
-    mutable StatCounter statRpyXmt;
-    mutable StatCounter statReqQLimit;
+    mutable NodeStats stats;
 
     TaskPool(trunknode_t, nodename_t);
     ~TaskPool() {}

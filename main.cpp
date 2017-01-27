@@ -333,12 +333,12 @@ static void handleAcnetUsm(TaskPool *taskPool, AcnetHeader const& hdr)
 
 	if (task->acceptsUsm())
 	    if (task->sendDataToClient(&hdr))
-		++task->statUsmRcv;
+		++task->stats.usmRcv;
 
 	++ii.first;
     }
 
-    ++taskPool->statUsmRcv;
+    ++taskPool->stats.usmRcv;
 }
 
 static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
@@ -405,8 +405,8 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	taskPool->rpyPool.endRpyId(rpy->id());
 
 	if (task.sendDataToClient(&hdr)) {
-	    ++task.statUsmRcv;
-	    ++taskPool->statUsmRcv;
+	    ++task.stats.usmRcv;
+	    ++taskPool->stats.usmRcv;
 	} else
 	    taskPool->removeTask(&task);
     }
@@ -436,7 +436,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
     TaskInfo *deadTask = 0;
     bool sendError = true;
 
-    ++taskPool->statReqRcv;
+    ++taskPool->stats.reqRcv;
 
     while (ii.first != ii.second) {
 	status_t result = ACNET_SUCCESS;
@@ -481,7 +481,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 
 			hdr.setStatus((status_t) rpy->id());
 			if (task->sendDataToClient(&hdr)) {
-			    ++task->statReqRcv;
+			    ++task->stats.reqRcv;
 			    continue;
 			}
 			result = ACNET_BUSY;
@@ -609,8 +609,8 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 	    // Update some bookkeeping; increment packet counters and reset the
 	    // time-out.
 
-	    ++req->task().statRpyRcv;
-	    ++taskPool->statRpyRcv;
+	    ++req->task().stats.rpyRcv;
+	    ++taskPool->stats.rpyRcv;
 
 	    req->bumpPktStats();
 	    taskPool->reqPool.update(req);
@@ -987,7 +987,7 @@ static bool handleClientCommand()
 			NameLookupCommand const* const cmd = static_cast<NameLookupCommand const*>(cmdHdr);
 
 			ack.setStatus(nameLookup(cmd->name(), addr) ?
-				      (ack.node = addr.node(), ack.trunk = addr.trunk(), ACNET_SUCCESS) : ACNET_NO_NODE);
+				      (ack.setTrunkNode(addr), ACNET_SUCCESS) : ACNET_NO_NODE);
 
 			(void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
 		    }
@@ -1007,7 +1007,7 @@ static bool handleClientCommand()
 			NodeLookupCommand const* const cmd = static_cast<NodeLookupCommand const*>(cmdHdr);
 
 			ack.setStatus(nodeLookup(cmd->addr(), name) ?
-				      (ack.name = htonl(name.raw()), ACNET_SUCCESS) : ACNET_NO_NODE);
+				      (ack.setNodeName(name), ACNET_SUCCESS) : ACNET_NO_NODE);
 			(void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
 		    }
 		}
@@ -1017,8 +1017,7 @@ static bool handleClientCommand()
 		else if (CommandList::cmdLocalNode == cmdHdr->cmd()) {
 		    AckNameLookup ack;
 
-		    ack.trunk = taskPool->node().trunk();
-		    ack.node = taskPool->node().node();
+		    ack.setTrunkNode(taskPool->node());
 		    (void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
 		}
 
@@ -1027,8 +1026,7 @@ static bool handleClientCommand()
 		else if (CommandList::cmdDefaultNode == cmdHdr->cmd()) {
 		    AckNameLookup ack;
 
-		    ack.trunk = myNode().trunk();
-		    ack.node = myNode().node();
+		    ack.setTrunkNode(myNode());
 		    (void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
 		}
 

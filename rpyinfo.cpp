@@ -80,8 +80,8 @@ status_t ReplyPool::sendReplyToNetwork(TaskInfo const* const task,
 	if (rpy->xmitReply(status, data, n, emr))
 	    endRpyId(id);
 
-	++task->statRpyXmt;
-	++task->taskPool().statRpyXmt;
+	++task->stats.rpyXmt;
+	++task->taskPool().stats.rpyXmt;
 
 	// Return now so we don't send two replies to the client.
 
@@ -215,8 +215,8 @@ void ReplyPool::endRpyToNode(trunknode_t const tn)
 
 	    TaskInfo& task = rpy->task();
 	    bool failed = !task.sendDataToClient(&hdr);
-	    ++task.statUsmRcv;
-	    ++task.taskPool().statUsmRcv;
+	    ++task.stats.usmRcv;
+	    ++task.taskPool().stats.usmRcv;
 
 	    // Clean up our local resources.
 
@@ -260,8 +260,8 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 					sizeof(AcnetHeader));
 
 		(void) sendDataToNetwork(hdr, 0, 0);
-		++rpy->task().statRpyXmt;
-		++rpy->task().taskPool().statRpyXmt;
+		++rpy->task().stats.rpyXmt;
+		++rpy->task().taskPool().stats.rpyXmt;
 	    }
 
 	    // Tell the local client that this request is cancelled
@@ -272,8 +272,8 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 				    sizeof(AcnetHeader));
 
 	    (void) rpy->task().sendDataToClient(&hdr);
-	    ++rpy->task().statUsmRcv;
-	    ++rpy->task().taskPool().statUsmRcv;
+	    ++rpy->task().stats.usmRcv;
+	    ++rpy->task().taskPool().stats.usmRcv;
 	}
 
 	// Find the entry in the active map that referrs to this reply info
