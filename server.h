@@ -643,7 +643,6 @@ struct AddNodeCommand : public CommandHeaderBase<CommandList::cmdAddNode> {
 ASSERT_SIZE(AddNodeCommand, 24)
 
 struct TaskPidCommand : public CommandHeaderBase<CommandList::cmdTaskPid> {
- private:
     uint32_t task;
 } __attribute__((packed));
 
