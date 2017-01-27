@@ -1,4 +1,5 @@
 #include "server.h"
+#include <netdb.h>
 
 RemoteTask::RemoteTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			     uint16_t dataPort, ipaddr_t remoteAddr) :
@@ -56,8 +57,20 @@ std::string RemoteTask::propVal(size_t ii) const
     if (ii < ExternalTask::totalProp())
 	return ExternalTask::propVal(ii);
 
-    if (ii == (ExternalTask::totalProp()))
-	return remoteAddr.str();
+    if (ii == (ExternalTask::totalProp())) {
+	sockaddr_in addr;
+
+	addr.sin_family = AF_INET;
+	addr.sin_port = 0;
+	addr.sin_addr.s_addr = htonl(remoteAddr.value());
+
+	char host[1024];
+
+	if (getnameinfo((sockaddr *) &addr, sizeof(addr), host, sizeof(host), 0, 0, 0) == 0)
+	    return std::string(host);
+	else
+	    return remoteAddr.str();
+    }
 
     return "";
 }
