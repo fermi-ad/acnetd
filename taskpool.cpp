@@ -3,6 +3,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <fstream>
 #include <iomanip>
 #include <cstring>

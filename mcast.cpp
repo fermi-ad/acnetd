@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <syslog.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <string>
 #include <vector>
