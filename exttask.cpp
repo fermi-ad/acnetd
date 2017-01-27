@@ -388,7 +388,7 @@ void ExternalTask::handleRenameTask(RenameTaskCommand const *cmd)
 void ExternalTask::handleUnknownCommand(CommandHeader const *cmd, size_t const len)
 {
     syslog(LOG_WARNING, "task %s sent unknown command: %04x length:%ld",
-	    rtoa(handle().raw()), cmd->cmd(), len);
+	    rtoa(handle().raw()), uint16_t(cmd->cmd()), len);
 
     if (!sendErrorToClient(ACNET_BUG))
 	taskPool().removeTask(this);
