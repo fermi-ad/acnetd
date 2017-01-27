@@ -11,7 +11,7 @@
 
 
 TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData,
-						    nodename_t tcpNode, uint32_t remoteAddr) :
+						    nodename_t tcpNode, ipaddr_t remoteAddr) :
 						    sTcp(sTcp), sCmd(sCmd), sData(sData),
 						    tcpNode(tcpNode), remoteAddr(remoteAddr)
 {
@@ -68,7 +68,7 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 	    tmp.setVirtualNodeName(cmd->virtualNodeName());
 	    tmp.setPid(getpid());
 	    tmp.setDataPort(getSocketPort(sData));
-	    tmp.setRemoteAddr(ipaddr_t(remoteAddr));
+	    tmp.setRemoteAddr(remoteAddr);
 
 	    res = send(sCmd, &tmp, sizeof(tmp), 0);
 	}
@@ -271,7 +271,7 @@ static void sendAcceptKey(int sTcp, const char *key)
     send(sTcp, acceptKey, sizeof(acceptKey), 0);
 }
 
-static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodename_t tcpNode, uint32_t remoteAddr)
+static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodename_t tcpNode, ipaddr_t remoteAddr)
 {
     TcpClientProtocolHandler *handler = 0;
     ssize_t len;
@@ -337,13 +337,10 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
 
-    uint32_t ip = 0;
+    ipaddr_t ip;
     if (getpeername(sTcp, (sockaddr*) &addr, &len) == 0) {
-	ip = ntohl(addr.sin_addr.s_addr);
-
-	syslog(LOG_NOTICE, "tcpclient: connection from host %d.%d.%d.%d",
-	       ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8),
-	       (uint8_t) ip);
+	ip = ipaddr_t(ntohl(addr.sin_addr.s_addr));
+	syslog(LOG_NOTICE, "tcpclient: connection from host %s", ip.str().c_str());
     } else
 	syslog(LOG_NOTICE, "tcpclient: connection on socket: %d", sTcp);
 

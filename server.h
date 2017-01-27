@@ -167,12 +167,13 @@ class ipaddr_t {
     ipaddr_t() : addr(0) {}
     explicit ipaddr_t(uint32_t const addr) : addr(addr) {}
 
-    bool isBlank() const { return addr == 0; }
-    uint32_t raw() const { return addr; }
+    bool isMulticast() const { return IN_MULTICAST(addr); }
+    bool isValid() const { return addr != 0; }
+    uint32_t value() const { return addr; }
     std::string str() const
     {
 	std::ostringstream os;
-	os << this;
+	os << *this;
 	return os.str();
     }
 
@@ -180,14 +181,6 @@ class ipaddr_t {
     bool operator== (ipaddr_t const o) const { return addr == o.addr; }
     bool operator!= (ipaddr_t const o) const { return addr != o.addr; }
 };
-
-inline std::ostream& operator<<(std::ostream& os, ipaddr_t v)
-{
-    os << (v.addr >> 24) << "." << (int) ((uint8_t) (v.addr >> 16)) << "." <<
-	    (int) ((uint8_t) (v.addr >> 8)) << "." << (int) ((uint8_t) v.addr);
-
-    return os;
-}
 
 std::string rtos(nodename_t);
 
@@ -428,7 +421,7 @@ struct TcpConnectCommand : public ConnectCommand {
 
     inline void setRemoteAddr(ipaddr_t remoteAddr)
     {
-	remoteAddr_ = htonl(remoteAddr.raw());
+	remoteAddr_ = htonl(remoteAddr.value());
     }
 } __attribute__((packed));
 
@@ -641,7 +634,7 @@ struct AddNodeCommand : public CommandHeaderBase<CommandList::cmdAddNode> {
     uint32_t nodeName_;
 
  public:
-    inline uint32_t ipAddr() const { return ntohl(ipAddr_); }
+    inline ipaddr_t ipAddr() const { return ipaddr_t(ntohl(ipAddr_)); }
     inline uint32_t flags() const { return ntohl(flags_); }
     inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
     inline nodename_t nodeName() const { return nodename_t(ntohl(nodeName_)); }
@@ -1399,34 +1392,6 @@ extern uint16_t acnetPort;
 class DataOut;
 struct pollfd;
 
-class IpInfo : private Noncopyable {
-    sockaddr_in in;
-    nodename_t name_;
-    DataOut* partial;
-
-    IpInfo& operator= (IpInfo const&);
-
- public:
-    IpInfo();
-    IpInfo(nodename_t, uint32_t, uint16_t = acnetPort);
-
-    sockaddr_in const* addr() const { return &in; }
-    DataOut* partialBuffer() const { return partial; }
-    void setPartialBuffer(DataOut* ptr) { partial = ptr; }
-    bool matches(nodename_t nm) const { return name_ == nm; }
-    nodename_t name() const { return name_; }
-    void update(nodename_t n, uint32_t a)
-    {
-	if (!n.isBlank())
-	    name_ = n;
-
-	if (a) {
-	    in.sin_addr.s_addr = htonl(a);
-	    in.sin_port = htons(acnetPort);
-	}
-    }
-};
-
 #define TCP_CLIENT_PING	(0)
 #define ACNETD_COMMAND	(1)
 #define ACNETD_ACK	(2)
@@ -1439,13 +1404,13 @@ class TcpClientProtocolHandler : private Noncopyable
  protected:
     int sTcp, sCmd, sData;
     nodename_t tcpNode;
-    uint32_t remoteAddr;
+    ipaddr_t remoteAddr;
 
     bool readBytes(void *, size_t);
     bool handleClientCommand(CommandHeader *, size_t);
 
  public:
-    TcpClientProtocolHandler(int, int, int, nodename_t, uint32_t);
+    TcpClientProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~TcpClientProtocolHandler() {}
 
     virtual bool handleClientSocket() =  0;
@@ -1458,7 +1423,7 @@ class TcpClientProtocolHandler : private Noncopyable
 class RawProtocolHandler : public TcpClientProtocolHandler
 {
  public:
-    RawProtocolHandler(int, int, int, nodename_t, uint32_t);
+    RawProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~RawProtocolHandler() {}
 
     virtual bool handleClientSocket();
@@ -1492,7 +1457,7 @@ class WebSocketProtocolHandler : public TcpClientProtocolHandler
     bool sendBinaryDataToClient(Pkt2 *, ssize_t, uint16_t);
 
  public:
-    WebSocketProtocolHandler(int, int, int, nodename_t, uint32_t);
+    WebSocketProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~WebSocketProtocolHandler() {}
 
     virtual bool handleClientSocket();
@@ -1504,9 +1469,9 @@ class WebSocketProtocolHandler : public TcpClientProtocolHandler
 
 // Inline functions...
 
-inline uint32_t octetsToIp(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+inline ipaddr_t octetsToIp(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
-    return (a << 24) | (b << 16) | (c << 8) | d;
+    return ipaddr_t((a << 24) | (b << 16) | (c << 8) | d);
 }
 
 inline void secToMs(time_t t, time48_t* t48)
@@ -1548,7 +1513,7 @@ void sendNodesRequestUsm(uint32_t);
 bool sendPendingPackets();
 void sendUsmToNetwork(trunknode_t, taskhandle_t, nodename_t, acnet_taskid_t, uint8_t const*, size_t);
 void setPartialBuffer(trunknode_t, DataOut*);
-bool validFromAddress(char const[], trunknode_t, uint32_t, uint32_t);
+bool validFromAddress(char const[], trunknode_t, ipaddr_t, ipaddr_t);
 bool validToAddress(char const[], trunknode_t, trunknode_t);
 
 // Node table interface
@@ -1560,16 +1525,15 @@ bool isLocal(trunknode_t, uint32_t = 0);
 bool isThisMachine(trunknode_t);
 uint32_t ipAddr(char const[]);
 time_t lastNodeTableDownloadTime();
-uint32_t myIp();
+ipaddr_t myIp();
 trunknode_t myNode();
 nodename_t myHostName();
 void setMyHostName(nodename_t);
 bool nodeLookup(trunknode_t, nodename_t&);
 bool nameLookup(nodename_t, trunknode_t&);
-bool nameLookup(nodename_t, uint32_t&);
-void updateAddr(trunknode_t, nodename_t, uint32_t);
-bool addrLookup(uint32_t, trunknode_t&);
-IpInfo* findNodeInfo(trunknode_t);
+bool nameLookup(nodename_t, ipaddr_t&);
+void updateAddr(trunknode_t, nodename_t, ipaddr_t);
+bool addrLookup(ipaddr_t, trunknode_t&);
 void setMyIp();
 void setLastNodeTableDownloadTime();
 bool trunkExists(trunk_t);

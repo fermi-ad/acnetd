@@ -57,7 +57,7 @@ bool joinMulticastGroup(int socket, ipaddr_t addr)
     ip_mreq mreq;
 
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-    mreq.imr_multiaddr.s_addr = htonl(addr.raw());
+    mreq.imr_multiaddr.s_addr = htonl(addr.value());
     if (-1 == setsockopt(socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)))
 	syslog(LOG_ERR, "Couldn't join multicast group: %s -- %m", addr.str().c_str());
     else {
@@ -92,7 +92,7 @@ void dropMulticastGroup(int socket, ipaddr_t addr)
 		ip_mreq mreq;
 
 		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-		mreq.imr_multiaddr.s_addr = htonl(addr.raw());
+		mreq.imr_multiaddr.s_addr = htonl(addr.value());
 		if (-1 == setsockopt(socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)))
 		    syslog(LOG_ERR, "Couldn't drop multicast group: %s -- %m", addr.str().c_str());
 #ifdef DEBUG

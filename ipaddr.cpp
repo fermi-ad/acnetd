@@ -13,45 +13,67 @@
 
 #define	ILLEGAL_NODE	nodename_t(0xfffffffful)
 
+class IpInfo : private Noncopyable {
+    sockaddr_in in;
+    nodename_t name_;
+    DataOut* partial;
+
+    IpInfo& operator= (IpInfo const&);
+
+ public:
+    IpInfo() : name_(ILLEGAL_NODE), partial(0)
+    {
+	in.sin_family = AF_INET;
+	in.sin_port = htons(0);
+	in.sin_addr.s_addr = htonl(0);
+    #if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
+	in.sin_len = sizeof(in);
+    #endif
+    }
+
+    sockaddr_in const* addr() const { return &in; }
+    DataOut* partialBuffer() const { return partial; }
+    void setPartialBuffer(DataOut* ptr) { partial = ptr; }
+    bool matches(nodename_t nm) const { return name_ == nm; }
+    nodename_t name() const { return name_; }
+    void update(nodename_t n, ipaddr_t a)
+    {
+	if (!n.isBlank())
+	    name_ = n;
+
+	if (a.isValid()) {
+	    in.sin_addr.s_addr = htonl(a.value());
+	    in.sin_port = htons(acnetPort);
+	}
+    }
+};
+
 // Local prototypes
 
 static void eraseNode(trunknode_t);
-static void insertNode(trunknode_t, nodename_t, uint32_t);
+static void insertNode(trunknode_t, nodename_t, ipaddr_t);
 static IpInfo* returnTrunk(trunk_t);
 
 // Local data
 
 static IpInfo* addrMap[256] = { 0 };
 static trunknode_t myNode_;
-static uint32_t myIp_ = 0;
+static ipaddr_t myIp_;
 static nodename_t myHostName_;
 static time_t lastNodeTableDownloadTime_ = 0;
 
-IpInfo::IpInfo() : name_(ILLEGAL_NODE), partial(0)
+std::ostream& operator<<(std::ostream& os, ipaddr_t v)
 {
-    in.sin_family = AF_INET;
-    in.sin_port = htons(0);
-    in.sin_addr.s_addr = htonl(0);
-#if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
-    in.sin_len = sizeof(in);
-#endif
-}
+    os << (v.addr >> 24) << "." << (int) ((uint8_t) (v.addr >> 16)) << "." <<
+	    (int) ((uint8_t) (v.addr >> 8)) << "." << (int) ((uint8_t) v.addr);
 
-IpInfo::IpInfo(nodename_t name, uint32_t a, uint16_t port) :
-    name_(name), partial(0)
-{
-    in.sin_family = AF_INET;
-    in.sin_port = htons(port);
-    in.sin_addr.s_addr = htonl(a);
-#if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
-    in.sin_len = sizeof(in);
-#endif
+    return os;
 }
 
 void generateKillerMessages()
 {
-    assert(myIp_ != 0);
-    uint32_t const addr = htonl(myIp_);
+    assert(myIp_.isValid());
+    uint32_t const addr = htonl(myIp_.value());
 
     for (size_t trunk = 0; trunk < sizeof(addrMap) / sizeof(*addrMap); ++trunk)
 	if (addrMap[trunk])
@@ -64,7 +86,7 @@ void generateKillerMessages()
 	    }
 }
 
-bool addrLookup(uint32_t a, trunknode_t& tn)
+bool addrLookup(ipaddr_t a, trunknode_t& tn)
 {
     for (size_t trunk = 0; trunk < 256; ++trunk) {
 	IpInfo const* const ptr = addrMap[trunk];
@@ -73,7 +95,7 @@ bool addrLookup(uint32_t a, trunknode_t& tn)
 	    for (size_t node = 0; node < 256; ++node) {
 		IpInfo const* const record = ptr + node;
 
-		if (record->name() != ILLEGAL_NODE && htonl(a) == record->addr()->sin_addr.s_addr) {
+		if (record->name() != ILLEGAL_NODE && htonl(a.value()) == record->addr()->sin_addr.s_addr) {
 		    tn = trunknode_t(trunk, node);
 		    return true;
 		}
@@ -87,7 +109,7 @@ bool addrLookup(uint32_t a, trunknode_t& tn)
 static void eraseNode(trunknode_t tn)
 {
     if (addrMap[tn.trunk()])
-	addrMap[tn.trunk()][tn.node()].update(ILLEGAL_NODE, 0);
+	addrMap[tn.trunk()][tn.node()].update(ILLEGAL_NODE, ipaddr_t());
 }
 
 // Returns the IpInfo structure associated with the given trunk and node.
@@ -161,11 +183,11 @@ sockaddr_in const *getAddr(trunknode_t tn)
     return ii ? ii->addr() : 0;
 }
 
-uint32_t getIpAddr(char const host[])
+ipaddr_t getIpAddr(char const host[])
 {
     hostent const* const he = gethostbyname(host);
 
-    return he ? ntohl(*(uint32_t*) he->h_addr_list[0]) : 0;
+    return he ? ipaddr_t(ntohl(*(uint32_t*) he->h_addr_list[0])) : ipaddr_t();
 }
 
 time_t lastNodeTableDownloadTime()
@@ -173,7 +195,7 @@ time_t lastNodeTableDownloadTime()
     return lastNodeTableDownloadTime_;
 }
 
-uint32_t myIp()
+ipaddr_t myIp()
 {
     return myIp_;
 }
@@ -205,7 +227,7 @@ DataOut* partialBuffer(trunknode_t tn)
 
 // Inserts a node into the node table.
 
-static void insertNode(trunknode_t tn, nodename_t name, uint32_t a)
+static void insertNode(trunknode_t tn, nodename_t name, ipaddr_t a)
 {
     IpInfo* const ptr = returnTrunk(tn.trunk());
 
@@ -216,10 +238,10 @@ static void insertNode(trunknode_t tn, nodename_t name, uint32_t a)
 
 bool isMulticastHandle(taskhandle_t th)
 {
-    uint32_t a;
+    ipaddr_t a;
 
     if (nameLookup(nodename_t(th), a))
-	return IN_MULTICAST(a);
+	return a.isMulticast();
 
     return false;
 }
@@ -235,7 +257,7 @@ bool isThisMachine(trunknode_t const tn)
 {
     IpInfo const* const ptr = findNodeInfo(tn);
 
-    return ptr && myIp_ == ntohl(ptr->addr()->sin_addr.s_addr);
+    return ptr && myIp_ == ipaddr_t(ntohl(ptr->addr()->sin_addr.s_addr));
 }
 
 // Lookup the trunknode_t for a given nodename_t (slowly)
@@ -258,7 +280,7 @@ bool nameLookup(nodename_t name, trunknode_t& tn)
     return false;
 }
 
-bool nameLookup(nodename_t name, uint32_t& a)
+bool nameLookup(nodename_t name, ipaddr_t& a)
 {
     for (size_t trunk = 0; trunk < 256; ++trunk) {
 	IpInfo const* const ptr = addrMap[trunk];
@@ -268,7 +290,7 @@ bool nameLookup(nodename_t name, uint32_t& a)
 		IpInfo const* const record = ptr + node;
 
 		if (record->name() != ILLEGAL_NODE && record->matches(name)) {
-		    a = ntohl(record->addr()->sin_addr.s_addr);
+		    a = ipaddr_t(ntohl(record->addr()->sin_addr.s_addr));
 		    return true;
 		}
 	    }
@@ -317,7 +339,9 @@ void setMyIp()
     // Do a DNS lookup of the name. If we succeed, we remember the IP address. Otherwise report an error indicating a
     // reduction in service.
 
-    if (0 == (myIp_ = getIpAddr(name)))
+    myIp_ = getIpAddr(name);
+
+    if (!myIp_.isValid())
 	syslog(LOG_WARNING, "DNS failure, '%s' -- we won't be able to recognize local traffic", hstrerror(h_errno));
 
     // If the hostName wasn't set on the command line then use the os hostname
@@ -337,8 +361,10 @@ void setMyIp()
 
     // Add generic multicast to trunk/node table
 
-    insertNode(ACNET_MULTICAST, nodename_t(ator("MCAST")), octetsToIp(239, 128, 4, 1));
-    joinMulticastGroup(sClient, ipaddr_t(octetsToIp(239, 128, 4, 1)));
+    ipaddr_t mcAddr = octetsToIp(239, 128, 4, 1);
+
+    insertNode(ACNET_MULTICAST, nodename_t(ator("MCAST")), mcAddr);
+    joinMulticastGroup(sClient, mcAddr);
 }
 
 // Associates a partially filled buffer with an ACNET node.
@@ -358,7 +384,7 @@ bool trunkExists(trunk_t t)
 
 // Update trunk/node lookup to map (used for internal node table entries)
 
-void updateAddr(trunknode_t tn, nodename_t newName, uint32_t newAddr)
+void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
 {
     // Don't let an application add an entry for the LOCAL address.
 
@@ -395,7 +421,7 @@ void updateAddr(trunknode_t tn, nodename_t newName, uint32_t newAddr)
     } else if (newName == ILLEGAL_NODE)
 	newName = nodename_t(ator("%%%%%%"));
 
-    if (newName.isBlank() && !newAddr)
+    if (newName.isBlank() && !newAddr.isValid())
 	eraseNode(tn);
     else {
 	IpInfo* const ii = findNodeInfo(tn);
@@ -404,7 +430,7 @@ void updateAddr(trunknode_t tn, nodename_t newName, uint32_t newAddr)
 	// node into the map.
 
 	if (ii) {
-	    if (htonl(newAddr) != ii->addr()->sin_addr.s_addr) {
+	    if (htonl(newAddr.value()) != ii->addr()->sin_addr.s_addr) {
 		cancelReqToNode(tn);
 		endRpyToNode(tn);
 	    }
@@ -417,16 +443,14 @@ void updateAddr(trunknode_t tn, nodename_t newName, uint32_t newAddr)
     }
 }
 
-bool validFromAddress(char const proto[], trunknode_t const ctn, uint32_t const in, uint32_t const ip)
+bool validFromAddress(char const proto[], trunknode_t const ctn, ipaddr_t const in, ipaddr_t const ip)
 {
     if (ip == in)
 	return true;
     else {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Dropping %s from %d.%d.%d.%d == %d.%d.%d.%d? -- client masquerading as 0x%02x%02x", proto,
-		   in >> 24, (uint8_t) (in >> 16), (uint8_t) (in >> 8), (uint8_t) in,
-		   ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip,
-		   ctn.trunk(), ctn.node());
+	    syslog(LOG_WARNING, "Dropping %s from %s == %s? -- client masquerading as 0x%02x%02x",
+		    proto, in.str().c_str(), ip.str().c_str(), ctn.trunk(), ctn.node());
 	return false;
     }
 }

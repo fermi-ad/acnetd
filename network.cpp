@@ -371,9 +371,8 @@ bool sendPendingPackets()
 		if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EMSGSIZE)
 		    return false;
 		else {
-		    uint32_t ip = ntohl(((sockaddr_in *) addr)->sin_addr.s_addr);
-		    syslog(LOG_WARNING, "couldn't send packet to socket -- %m (%d.%d.%d.%d)",
-				ip >> 24, (uint8_t) (ip >> 16), (uint8_t) (ip >> 8), (uint8_t) ip);
+		    ipaddr_t ip = ipaddr_t(ntohl(((sockaddr_in *) addr)->sin_addr.s_addr));
+		    syslog(LOG_WARNING, "couldn't send packet to socket -- %m (%s)", ip.str().c_str());
 		}
 	    }
 	} else if (dumpOutgoing) {
