@@ -1,3 +1,6 @@
+#ifndef __TIMESENSITIVE_H
+#define __TIMESENSITIVE_H
+
 #include <time.h>
 #include <sys/time.h>
 #include "node.h"
@@ -18,3 +21,9 @@ struct TimeSensitive : public Node {
     void update(Node*);
     virtual timeval expiration() const = 0;
 };
+
+// Local Variables:
+// mode:c++
+// End:
+
+#endif

@@ -29,4 +29,8 @@ class MulticastTask : public ExternalTask {
     char const* name() const { return "MulticastTask"; }
 };
 
+// Local Variables:
+// mode:c++
+// End:
+
 #endif
