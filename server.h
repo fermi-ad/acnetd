@@ -1,3 +1,6 @@
+#ifndef __SERVER_H
+#define __SERVER_H
+
 #include <poll.h>
 #include <unistd.h>
 #include <syslog.h>
@@ -1625,3 +1628,5 @@ extern time_t statTimeBase;
 // Local Variables:
 // mode:c++
 // End:
+
+#endif
