@@ -310,7 +310,7 @@ void dumpPacket(const char* pktType, AcnetHeader const& hdr, void const* d,
 	   ((flags & ACNET_FLG_MLT) ? " MLT " : ""),
 	   txt[(flags & ACNET_FLG_TYPE) >> 1], hdr.status().raw(),
 	   hdr.server().raw(), hdr.client().raw(),
-	   rtoa(hdr.svrTaskName().raw()), hdr.svrTaskName().raw(),
+	   hdr.svrTaskName().str(), hdr.svrTaskName().raw(),
 	   hdr.clntTaskId(), hdr.msgId(), (int) msgLen,
 	   dumpBuffer(d, msgLen - sizeof(AcnetHeader)));
 }

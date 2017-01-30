@@ -208,7 +208,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 	ack.setStatus(err);
     } catch (...) {
 	ack.setStatus(ACNET_NLM);
-	syslog(LOG_ERR, "failed connect for %s", rtoa(clientName.raw()));
+	syslog(LOG_ERR, "failed connect for %s", clientName.str());
     }
 
 #ifdef DEBUG
@@ -427,7 +427,7 @@ void TaskPool::removeOnlyThisTask(TaskInfo* const task, status_t status, bool se
 	    active.erase(ii.first);
 	    break;
 	} else if (++ii.first == ii.second) {
-	    syslog(LOG_ERR, "removeOnlyThisTask: task %s not found", rtoa(task->handle().raw()));
+	    syslog(LOG_ERR, "removeOnlyThisTask: task %s not found", task->handle().str());
 	    abort();
 	}
 
@@ -439,7 +439,7 @@ void TaskPool::removeOnlyThisTask(TaskInfo* const task, status_t status, bool se
         rpyPool.endRpyId(*task->replies.begin(), status);
 
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "removing task '%s' (pid = %d)", rtoa(task->handle().raw()), task->pid());
+    syslog(LOG_DEBUG, "removing task '%s' (pid = %d)", task->handle().str(), task->pid());
 #endif
 
     removed.push_back(task);
@@ -535,7 +535,7 @@ void TaskPool::generateReport()
 	char file[256];
 
 	strcpy(file, "/tmp/acnet_");
-	strcat(file, rtoa_strip(nodeName().raw()));
+	strcat(file, nodeName().str());
 	strcat(file, ".html");
 
 	syslog(LOG_INFO, "report process started to file '%s'", file);
@@ -543,7 +543,7 @@ void TaskPool::generateReport()
 	{
 	    std::ofstream os(file);
 
-	    os << "Subject: ACNET Report\n" //<< rtoa_strip(taskPool->getNodeName().getRaw()) << "\n"
+	    os << "Subject: ACNET Report\n"
 		"Content-type: text/html; charset=us-ascii\n\n"
 		"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" "
 		"\"http://www.w3.org/TR/html4/loose.dtd\">\n"
@@ -583,7 +583,7 @@ void TaskPool::generateReport()
 		"\t</head>\n"
 		"\t<body>\n";
 
-	    os << "\t\t<div class=\"section\">\n\t\t\t<h1>Report for ACNET Node " << rtoa_strip(nodeName().raw()) << "</h1>\n\t\t</div>\n";
+	    os << "\t\t<div class=\"section\">\n\t\t\t<h1>Report for ACNET Node " << nodeName().str() << "</h1>\n\t\t</div>\n";
 
 	    // Call the various report functions.
 

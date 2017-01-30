@@ -75,7 +75,7 @@ bool ExternalTask::sendAckToClient(void const* d, size_t n)
 
 bool ExternalTask::sendMessageToClient(AcnetClientMessage* msg)
 {
-    msg->pid = pid();
+    msg->setPid(pid());
 
     ssize_t const res = sendto(sClient, msg, sizeof(AcnetClientMessage), 0,
 			       (sockaddr const*) &saData, sizeof(saData));
