@@ -1,4 +1,4 @@
-#include "server.h"
+#include "remtask.h"
 #include <netdb.h>
 
 RemoteTask::RemoteTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
