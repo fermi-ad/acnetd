@@ -1,4 +1,4 @@
-#include "server.h"
+#include "lcltask.h"
 
 LocalTask::LocalTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			     uint16_t dataPort) :
@@ -27,4 +27,3 @@ void LocalTask::handleBlockRequests()
     if (!sendAckToClient(&ack, sizeof(ack)))
 	taskPool().removeTask(this);
 }
-
