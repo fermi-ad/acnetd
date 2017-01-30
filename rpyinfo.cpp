@@ -143,7 +143,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, acnet_taskid_t tId,
 #ifdef DEBUG
 		syslog(LOG_DEBUG, "Created new rep (id = 0x%04x) for task "
 		       "'%s' ... requestor is task %d on trunk %x, node %d "
-		       "-- %d active reply structures", rpy->id(), rtoa(rpy->taskName().raw(), 0),
+		       "-- %d active reply structures", rpy->id(), rpy->taskName().str(),
 		       rpy->taskId(), rpy->remNode().trunk(), rpy->remNode().node(),
 		       (int) idPool.activeIdCount());
 #endif
@@ -399,7 +399,8 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 
 	if (!nodeLookup(rpy->remNode(), tmp))
 	    strcpy(remNode, "");
-	rtoa(tmp.raw(), remNode);
+
+	tmp.str(remNode);
 
 	os << "\t\t<table class=\"dump\">\n"
 	    "\t\t\t<colgroup>\n"
@@ -412,7 +413,7 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    (rpy->isMultReplier() ? " (MLT)" : "") << "</td></tr>\n"
 	    "\t\t\t</thead>\n"
 	    "\t\t\t<tbody>\n"
-	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<< rtoa(rpy->task().handle().raw()) << "'</td></tr>\n"
+	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<< rpy->task().handle().str() << "'</td></tr>\n"
 	    "\t\t\t\t<tr class=\"even\"><td class=\"label\">Request Origin</td><td>Task " <<
 	    std::setfill(' ') << std::dec <<
 	    (uint32_t) rpy->taskId() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<

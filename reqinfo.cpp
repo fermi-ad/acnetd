@@ -245,7 +245,8 @@ void RequestPool::generateReqReport(std::ostream& os)
 
 	if (!nodeLookup(req->remNode(), tmp))
 	    strcpy(remNode, "");
-	rtoa(tmp.raw(), remNode);
+
+	tmp.str(remNode);
 
 	os << "\t\t<table class=\"dump\">\n"
 	    "\t\t\t<colgroup>\n"
@@ -259,9 +260,9 @@ void RequestPool::generateReqReport(std::ostream& os)
 	    "\t\t\t</thead>\n"
 	    "\t\t\t<tbody>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<<
-	    rtoa(req->task().handle().raw()) << "'</td></tr>\n";
+	    req->task().handle().str() << "'</td></tr>\n";
 	os << "\t\t\t\t<tr class =\"even\"><td class=\"label\">Request Target</td><td>Task '" <<
-	    rtoa(req->taskName().raw()) << "' on node " << remNode << " (" << std::hex <<
+	    req->taskName().str() << "' on node " << remNode << " (" << std::hex <<
 	    std::setw(4) << std::setfill('0') << req->remNode().raw() <<
 	    ")</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;

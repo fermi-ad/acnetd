@@ -58,7 +58,7 @@ void TaskInfo::report(std::ostream& os) const
 	"\t\t\t<thead>\n";
 
     os <<
-	"\t\t\t<tr><td colspan=\"2\">Task " << rtoa_strip(handle().raw());
+	"\t\t\t<tr><td colspan=\"2\">Task " << handle().str();
 
     os <<
 	' ' << ((acceptsUsm() || acceptsRequests()) ? "*RUM* " : "") << "(0x" <<

@@ -361,8 +361,8 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 
 	    syslog(LOG_ERR, "mismatched CANCEL task name (%s != %s) "
 		   "received from node 0x%04x",
-		   rtoa(hdr.svrTaskName().raw(), buf1),
-		   rtoa(rpy->taskName().raw(), buf2),
+		   hdr.svrTaskName().str(buf1),
+		   rpy->taskName().str(buf2),
 		   hdr.client().raw());
 	    return;
 	}

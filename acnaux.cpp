@@ -284,7 +284,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 bool AcnetTask::sendMessageToClients(AcnetClientMessage* msg) const
 {
     bool foundOne = false;
-    auto ii = taskPool().tasks(taskhandle_t(msg->task));
+    auto ii = taskPool().tasks(msg->task());
 
     while (ii.first != ii.second) {
 	if (ii.first->second->sendMessageToClient(msg))
@@ -327,7 +327,7 @@ void AcnetTask::debugHandler(rpyid_t id, uint8_t subType, uint16_t const* const 
 
      case 7:
 	if (dataSize == 2) {
-	    AcnetClientMessage cMsg(taskhandle_t(htoal(*(uint32_t*) data)),
+	    AcnetClientMessage cMsg(taskhandle_t(*(uint32_t*) data),
 				    AcnetClientMessage::DumpTaskIncomingPacketsOn);
 	    if (!sendMessageToClients(&cMsg))
 		status = ACNET_LEVEL2;
@@ -337,7 +337,7 @@ void AcnetTask::debugHandler(rpyid_t id, uint8_t subType, uint16_t const* const 
 
      case 8:
 	if (dataSize == 2) {
-	    AcnetClientMessage cMsg(taskhandle_t(htoal(*(uint32_t*) data)),
+	    AcnetClientMessage cMsg(taskhandle_t(*(uint32_t*) data),
 				    AcnetClientMessage::DumpTaskIncomingPacketsOff);
 	    if (!sendMessageToClients(&cMsg))
 		status = ACNET_LEVEL2;
@@ -347,7 +347,7 @@ void AcnetTask::debugHandler(rpyid_t id, uint8_t subType, uint16_t const* const 
 
      case 9:
 	if (dataSize == 2) {
-	    AcnetClientMessage cMsg(taskhandle_t(htoal(*(uint32_t*) data)),
+	    AcnetClientMessage cMsg(taskhandle_t(*(uint32_t*) data),
 				    AcnetClientMessage::DumpProcessIncomingPacketsOn);
 	    if (!sendMessageToClients(&cMsg))
 		status = ACNET_LEVEL2;
@@ -357,7 +357,7 @@ void AcnetTask::debugHandler(rpyid_t id, uint8_t subType, uint16_t const* const 
 
      case 10:
 	if (dataSize == 2) {
-	    AcnetClientMessage cMsg(taskhandle_t(htoal(*(uint32_t*) data)),
+	    AcnetClientMessage cMsg(taskhandle_t(*(uint32_t*) data),
 				    AcnetClientMessage::DumpProcessIncomingPacketsOff);
 	    if (!sendMessageToClients(&cMsg))
 		status = ACNET_LEVEL2;

@@ -165,7 +165,7 @@ void generateIpReport(std::ostream& os)
 
 		    os << "\t\t\t<tr" << (even ? " class=\"even\"" : "") << "><td>" << std::hex << (unsigned) trunk <<
 			"</td><td>" << (unsigned) node << "</td><td>" << std::dec << (ip >> 24) << '.' << ((ip >> 16) & 0xff) <<
-			'.' << ((ip >> 8) & 0xff) << '.' << (ip & 0xff) << "</td><td>" << rtoa(record->name().raw()) << "</td></tr>\n";
+			'.' << ((ip >> 8) & 0xff) << '.' << (ip & 0xff) << "</td><td>" << record->name().str() << "</td></tr>\n";
 		    even = !even;
 		}
 	    }

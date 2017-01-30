@@ -138,7 +138,7 @@ class taskhandle_t {
 
     bool isBlank() const { return h == 0; }
     uint32_t raw() const { return h; }
-    char const* str(char *buf = 0) { return rtoa(h, buf); }
+    char const* str(char *buf = 0) { return rtoa_strip(h, buf); }
 };
 
 class nodename_t {
@@ -155,7 +155,7 @@ class nodename_t {
 
     bool isBlank() const { return h == 0; }
     uint32_t raw() const { return h; }
-    char const* str(char *buf = 0) { return rtoa(h, buf); }
+    char const* str(char *buf = 0) { return rtoa_strip(h, buf); }
 };
 
 class ipaddr_t {
@@ -411,7 +411,7 @@ enum class AckList : uint16_t {
 // This is the command header for all commands send from the client to
 // the acnet task.
 
-#define ASSERT_SIZE(C, S) static_assert(sizeof(C) == S, "Size of "#C" is incorrect");
+#define ASSERT_SIZE(C, S) static_assert(sizeof(C) == S, "Size of "#C" is incorrect")
 
 struct CommandHeader {
  private:
@@ -440,7 +440,7 @@ struct CommandHeader {
     }
 } __attribute__((packed));
 
-ASSERT_SIZE(CommandHeader, 10)
+ASSERT_SIZE(CommandHeader, 10);
 
 template<CommandList Cmd>
 struct CommandHeaderBase : public CommandHeader {
@@ -469,7 +469,7 @@ struct ConnectCommand : public CommandHeaderBase<CommandList::cmdConnect> {
     }
 } __attribute__((packed));
 
-ASSERT_SIZE(ConnectCommand, 16)
+ASSERT_SIZE(ConnectCommand, 16);
 
 struct TcpConnectCommand : public ConnectCommand {
  private:
@@ -484,7 +484,7 @@ struct TcpConnectCommand : public ConnectCommand {
     }
 } __attribute__((packed));
 
-ASSERT_SIZE(TcpConnectCommand, 20)
+ASSERT_SIZE(TcpConnectCommand, 20);
 
 // Sent by a client periodicly to keep it's Acnet connection.  An
 // AckCommand is sent back to the client.
@@ -492,7 +492,7 @@ ASSERT_SIZE(TcpConnectCommand, 20)
 struct KeepAliveCommand : public CommandHeaderBase<CommandList::cmdKeepAlive> {
 } __attribute__((packed));
 
-ASSERT_SIZE(KeepAliveCommand, 10)
+ASSERT_SIZE(KeepAliveCommand, 10);
 
 // Sent by a client when it wants to rename a connected task. An
 // AckConnect is sent back to the client.
@@ -505,7 +505,7 @@ struct RenameTaskCommand : public CommandHeaderBase<CommandList::cmdRenameTask> 
     inline taskhandle_t newName() const { return taskhandle_t(ntohl(newName_)); }
 } __attribute__((packed));
 
-ASSERT_SIZE(RenameTaskCommand, 14)
+ASSERT_SIZE(RenameTaskCommand, 14);
 
 // Sent by a client when it wants to disconnect from the network. An
 // AckCommand is sent back to the client.
@@ -514,13 +514,13 @@ struct DisconnectCommand :
     public CommandHeaderBase<CommandList::cmdDisconnect> {
 } __attribute__((packed));
 
-ASSERT_SIZE(DisconnectCommand, 10)
+ASSERT_SIZE(DisconnectCommand, 10);
 
 struct DisconnectSingleCommand :
     public CommandHeaderBase<CommandList::cmdDisconnectSingle> {
 } __attribute__((packed));
 
-ASSERT_SIZE(DisconnectSingleCommand, 10)
+ASSERT_SIZE(DisconnectSingleCommand, 10);
 
 // Sent by a client wanting to send an USM. An AckCommand is sent to
 // the client.
@@ -537,7 +537,7 @@ struct SendCommand : public CommandHeaderBase<CommandList::cmdSend> {
     inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
 
-ASSERT_SIZE(SendCommand, 16)
+ASSERT_SIZE(SendCommand, 16);
 
 // Sent by a client that wants to be a "RUM listener". The acnet task
 // marks the task handle (previously registered with a ConnectCommand)
@@ -547,7 +547,7 @@ struct ReceiveRequestCommand :
     public CommandHeaderBase<CommandList::cmdReceiveRequests> {
 } __attribute__((packed));
 
-ASSERT_SIZE(ReceiveRequestCommand, 10)
+ASSERT_SIZE(ReceiveRequestCommand, 10);
 
 // Sent by a client that wants to do a lookup of a node name to its
 // trunk/node combo.
@@ -562,7 +562,7 @@ struct NameLookupCommand :
     inline nodename_t name() const { return nodename_t(ntohl(name_)); }
 } __attribute__((packed));
 
-ASSERT_SIZE(NameLookupCommand, 14)
+ASSERT_SIZE(NameLookupCommand, 14);
 
 // Sent by a client that wants to do a lookup of a node name from its
 // trunk/node combo.
@@ -577,19 +577,19 @@ struct NodeLookupCommand :
     inline trunknode_t addr() const { return trunknode_t(ntohs(addr_)); }
 } __attribute__((packed));
 
-ASSERT_SIZE(NodeLookupCommand, 12)
+ASSERT_SIZE(NodeLookupCommand, 12);
 
 struct LocalNodeCommand :
     public CommandHeaderBase<CommandList::cmdLocalNode> {
 } __attribute__((packed));
 
-ASSERT_SIZE(LocalNodeCommand, 10)
+ASSERT_SIZE(LocalNodeCommand, 10);
 
 struct DefaultNodeCommand :
     public CommandHeaderBase<CommandList::cmdDefaultNode> {
 } __attribute__((packed));
 
-ASSERT_SIZE(DefaultNodeCommand, 10)
+ASSERT_SIZE(DefaultNodeCommand, 10);
 
 struct SendRequestCommand :
     public CommandHeaderBase<CommandList::cmdSendRequest> {
@@ -607,7 +607,7 @@ struct SendRequestCommand :
     inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
 
-ASSERT_SIZE(SendRequestCommand, 18)
+ASSERT_SIZE(SendRequestCommand, 18);
 
 struct SendRequestWithTimeoutCommand :
     public CommandHeaderBase<CommandList::cmdSendRequestWithTimeout> {
@@ -627,7 +627,7 @@ struct SendRequestWithTimeoutCommand :
     inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
 
-ASSERT_SIZE(SendRequestWithTimeoutCommand, 22)
+ASSERT_SIZE(SendRequestWithTimeoutCommand, 22);
 
 struct SendReplyCommand : public CommandHeaderBase<CommandList::cmdSendReply> {
  private:
@@ -643,7 +643,7 @@ struct SendReplyCommand : public CommandHeaderBase<CommandList::cmdSendReply> {
     inline uint8_t const *data() const { return data_; }
 } __attribute__((packed));
 
-ASSERT_SIZE(SendReplyCommand, 16)
+ASSERT_SIZE(SendReplyCommand, 16);
 
 struct IgnoreRequestCommand :
     public CommandHeaderBase<CommandList::cmdIgnoreRequest> {
@@ -655,7 +655,7 @@ struct IgnoreRequestCommand :
     inline rpyid_t rpyid() const { return ntohs(rpyid_); }
 } __attribute__((packed));
 
-ASSERT_SIZE(IgnoreRequestCommand, 12)
+ASSERT_SIZE(IgnoreRequestCommand, 12);
 
 struct CancelCommand : public CommandHeaderBase<CommandList::cmdCancel> {
  private:
@@ -665,13 +665,13 @@ struct CancelCommand : public CommandHeaderBase<CommandList::cmdCancel> {
     inline reqid_t reqid() const { return ntohs(reqid_); }
 } __attribute__((packed));
 
-ASSERT_SIZE(CancelCommand, 12)
+ASSERT_SIZE(CancelCommand, 12);
 
 struct BlockRequestCommand :
     public CommandHeaderBase<CommandList::cmdBlockRequests> {
 } __attribute__((packed));
 
-ASSERT_SIZE(BlockRequestCommand, 10)
+ASSERT_SIZE(BlockRequestCommand, 10);
 
 struct RequestAckCommand :
     public CommandHeaderBase<CommandList::cmdRequestAck> {
@@ -683,7 +683,7 @@ struct RequestAckCommand :
     inline rpyid_t rpyid() const { return ntohs(rpyid_); }
 } __attribute__((packed));
 
-ASSERT_SIZE(RequestAckCommand, 12)
+ASSERT_SIZE(RequestAckCommand, 12);
 
 struct AddNodeCommand : public CommandHeaderBase<CommandList::cmdAddNode> {
  private:
@@ -699,19 +699,19 @@ struct AddNodeCommand : public CommandHeaderBase<CommandList::cmdAddNode> {
     inline nodename_t nodeName() const { return nodename_t(ntohl(nodeName_)); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AddNodeCommand, 24)
+ASSERT_SIZE(AddNodeCommand, 24);
 
 struct TaskPidCommand : public CommandHeaderBase<CommandList::cmdTaskPid> {
     uint32_t task;
 } __attribute__((packed));
 
-ASSERT_SIZE(TaskPidCommand, 14)
+ASSERT_SIZE(TaskPidCommand, 14);
 
 struct NodeStatsCommand :
     public CommandHeaderBase<CommandList::cmdNodeStats> {
 } __attribute__((packed));
 
-ASSERT_SIZE(NodeStatsCommand, 10)
+ASSERT_SIZE(NodeStatsCommand, 10);
 
 class AckHeader {
  private:
@@ -728,7 +728,7 @@ class AckHeader {
     void setStatus(status_t status) { status_ = htons(status.raw()); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckHeader, 4)
+ASSERT_SIZE(AckHeader, 4);
 
 // This command is only sent from the acnet task to the clients to
 // acknowledge a command. This class contains a status field to pass
@@ -738,7 +738,7 @@ struct Ack : public AckHeader {
     Ack() : AckHeader(AckList::ackAck) { }
 } __attribute__((packed));
 
-ASSERT_SIZE(Ack, 4)
+ASSERT_SIZE(Ack, 4);
 
 struct AckConnect : public AckHeader {
  private:
@@ -751,7 +751,7 @@ struct AckConnect : public AckHeader {
     void setClientName(taskhandle_t clientName) { clientName_ = htonl(clientName.raw()); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckConnect, 9)
+ASSERT_SIZE(AckConnect, 9);
 
 struct AckSendRequest : public AckHeader {
  private:
@@ -762,7 +762,7 @@ struct AckSendRequest : public AckHeader {
     void setRequestId(reqid_t reqid) { reqid_ = htons(reqid); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckSendRequest, 6)
+ASSERT_SIZE(AckSendRequest, 6);
 
 struct AckSendReply : public AckHeader {
  private:
@@ -772,7 +772,7 @@ struct AckSendReply : public AckHeader {
     AckSendReply() : AckHeader(AckList::ackSendReply) { }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckSendReply, 6)
+ASSERT_SIZE(AckSendReply, 6);
 
 struct AckNameLookup : public AckHeader {
  private:
@@ -784,7 +784,7 @@ struct AckNameLookup : public AckHeader {
     void setTrunkNode(trunknode_t addr) { trunk = addr.trunk(); node = addr.node(); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckNameLookup, 6)
+ASSERT_SIZE(AckNameLookup, 6);
 
 struct AckNodeLookup : public AckHeader {
  private:
@@ -795,7 +795,7 @@ struct AckNodeLookup : public AckHeader {
     void setNodeName(nodename_t name) { name_ = htonl(name.raw()); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckNodeLookup, 8)
+ASSERT_SIZE(AckNodeLookup, 8);
 
 struct AckTaskPid : public AckHeader {
  private:
@@ -806,7 +806,7 @@ struct AckTaskPid : public AckHeader {
     void setPid(pid_t pid) { pid_ = htonl(pid); }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckTaskPid, 8)
+ASSERT_SIZE(AckTaskPid, 8);
 
 struct AckNodeStats : public AckHeader {
  private:
@@ -832,11 +832,17 @@ struct AckNodeStats : public AckHeader {
     }
 } __attribute__((packed));
 
-ASSERT_SIZE(AckNodeStats, 32)
+ASSERT_SIZE(AckNodeStats, 32);
 
 // Asynchronous message passing to client processes
 
 struct AcnetClientMessage {
+ private:
+    uint32_t pid_;
+    uint32_t task_;
+    uint8_t type;
+
+ public:
     enum {
 	Ping,
 	DumpProcessIncomingPacketsOn,
@@ -845,13 +851,13 @@ struct AcnetClientMessage {
 	DumpTaskIncomingPacketsOff,
     };
 
-    pid_t pid;
-    uint32_t task;
-    uint8_t type;
-
-    AcnetClientMessage() : pid(0), task(0), type(Ping) {}
-    AcnetClientMessage(taskhandle_t task, uint8_t type) : task(task.raw()), type(type) {}
+    AcnetClientMessage() : pid_(0), task_(0), type(Ping) {}
+    AcnetClientMessage(taskhandle_t task, uint8_t type) : task_(htoal(task.raw())), type(type) {}
+    void setPid(pid_t pid) { pid_ = htoal(pid); }
+    taskhandle_t task() { return taskhandle_t(atohl(task_)); }
 } __attribute__((packed));
+
+ASSERT_SIZE(AcnetClientMessage, 9);
 
 // Project-wide types...
 
