@@ -1,4 +1,4 @@
-#include "server.h"
+#include "mctask.h"
 
 MulticastTask::MulticastTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			     uint16_t dataPort, ipaddr_t mcAddr) :
