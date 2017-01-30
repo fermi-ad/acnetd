@@ -1,7 +1,7 @@
 #ifndef __REMTASK_H
 #define __REMTASK_H
 
-#include "server.h"
+#include "exttask.h"
 
 // RemoteTask
 //

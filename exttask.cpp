@@ -1,7 +1,7 @@
 #include <signal.h>
 #include <cerrno>
 #include <sys/socket.h>
-#include "server.h"
+#include "exttask.h"
 
 ExternalTask::ExternalTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
 			    uint16_t dataPort) : TaskInfo(taskPool, handle),

@@ -1,7 +1,7 @@
 #ifndef __MCTASK_H
 #define __MCTASK_H
 
-#include "server.h"
+#include "exttask.h"
 
 // MulticastTask
 //
