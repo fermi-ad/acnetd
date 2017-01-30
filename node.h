@@ -1,3 +1,6 @@
+#ifndef __NODE_H
+#define __NODE_H
+
 class Node {
     Node* next_;
     Node* prev_;
@@ -14,3 +17,9 @@ class Node {
     void detach();
     virtual void update(Node*);
 };
+
+// Local Variables:
+// mode:c++
+// End:
+
+#endif

@@ -23,4 +23,8 @@ class trunknode_t {
     uint16_t raw() const { return tn; }
 };
 
+// Local Variables:
+// mode:c++
+// End:
+
 #endif
