@@ -1226,29 +1226,6 @@ class ExternalTask : public TaskInfo {
     std::string propVal(size_t) const;
 };
 
-// LocalTask
-//
-// UDP connections on the local machine
-//
-class LocalTask : public ExternalTask {
-    bool receiving;
-
-    LocalTask();
-
- protected:
-    void handleReceiveRequests();
-    void handleBlockRequests();
-
- public:
-    LocalTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t);
-    virtual ~LocalTask() {}
-
-    bool acceptsUsm() const { return receiving; }
-    bool acceptsRequests() const { return receiving; }
-
-    char const* name() const { return "LocalTask"; }
-};
-
 // RemoteTask
 //
 // TCP client connections from remote machines
