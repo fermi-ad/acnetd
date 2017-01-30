@@ -11,6 +11,7 @@
 #include <unistd.h>
 #endif
 #include "server.h"
+#include "mctask.h"
 
 TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeName_(nodeName)
 {
@@ -610,4 +611,3 @@ void TaskPool::generateReport()
 }
 
 #endif
-
