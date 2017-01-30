@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "server.h"
+#include "exttask.h"
 #if THIS_TARGET == NetBSD_Target
 #include <sys/resource.h>
 #include <util.h>

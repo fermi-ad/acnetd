@@ -1,7 +1,7 @@
 #ifndef __LCLTASK_H
 #define __LCLTASK_H
 
-#include "server.h"
+#include "exttask.h"
 
 // LocalTask
 //
