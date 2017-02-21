@@ -61,7 +61,7 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 
     switch (cmd->cmd()) {
      case CommandList::cmdConnect:
-     case CommandList::TcpConnectCommand:
+     case CommandList::cmdTcpConnect:
 	{
 	    TcpConnectCommand tmp;
 
