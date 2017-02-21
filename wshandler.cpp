@@ -197,12 +197,12 @@ bool WebSocketProtocolHandler::handleClientSocket()
 		     case 0x1:
 			{
 			    std::string s((char *) payload.data(), payload.size());
-			    handleAcnetCommand(payload);
+			    done = handleAcnetCommand(payload);
 			}
 			break;
 
 		     case 0x2:
-			handleAcnetCommand(payload);
+			done = handleAcnetCommand(payload);
 			break;
 
 		     case 0x8:
