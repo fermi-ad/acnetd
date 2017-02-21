@@ -61,6 +61,7 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 
     switch (cmd->cmd()) {
      case CommandList::cmdConnect:
+     case CommandList::TcpConnectCommand:
 	{
 	    TcpConnectCommand tmp;
 
@@ -81,10 +82,10 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 
     if (res == -1) {
 	syslog(LOG_ERR, "tcpclient: error sending command to acnetd -- %m");
-	return false;
+	return true;
     }
 
-    return true;
+    return false;
 }
 
 static int createDataSocket()
