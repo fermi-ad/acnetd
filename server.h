@@ -105,12 +105,21 @@ char const* rtoa_strip(uint32_t, char * = 0);
 
 typedef uint16_t reqid_t;
 typedef uint16_t rpyid_t;
-typedef uint8_t acnet_taskid_t;
 typedef uint8_t	trunk_t;
 typedef uint8_t	node_t;
 typedef struct {
     uint16_t t[3];
 } __attribute__((packed)) time48_t;
+
+class taskid_t {
+    uint16_t id_;
+
+ public:
+    explicit taskid_t(uint16_t id) : id_(id) {}
+    bool operator== (taskid_t const o) const { return id_ == o.id_; }
+    bool operator!= (taskid_t const o) const { return id_ != o.id_; }
+    uint16_t raw() const { return id_; }
+};
 
 class status_t {
     int16_t s;
@@ -309,13 +318,13 @@ class AcnetHeader {
 
  public:
     AcnetHeader();
-    AcnetHeader(uint16_t, status_t, trunknode_t, trunknode_t, taskhandle_t, uint16_t, uint16_t, uint16_t);
+    AcnetHeader(uint16_t, status_t, trunknode_t, trunknode_t, taskhandle_t, taskid_t, uint16_t, uint16_t);
     uint16_t flags() const { return atohs(flags_); }
     status_t status() const { return status_t(atohs(status_)); }
     trunknode_t client() const { return trunknode_t(cTrunk_, cNode_); }
     trunknode_t server() const { return trunknode_t(sTrunk_, sNode_); }
     taskhandle_t svrTaskName() const { return taskhandle_t(atohl(svrTaskName_)); }
-    uint16_t clntTaskId() const { return atohs(clntTaskId_); }
+    taskid_t clntTaskId() const { return taskid_t(atohs(clntTaskId_)); }
     uint16_t msgId() const { return atohs(msgId_); }
     uint16_t msgLen() const { return atohs(msgLen_); }
     uint8_t const *msg() const { return msg_; }
@@ -367,6 +376,7 @@ enum class CommandList : uint16_t {
         cmdKeepAlive	 		= be16(0),
 
 	cmdConnect    			= be16(1),
+	cmdConnectExt  			= be16(16),
 	cmdRenameTask 			= be16(2),
 	cmdDisconnect			= be16(3),
 
@@ -400,6 +410,7 @@ enum class AckList : uint16_t {
 	ackAck				= be16(0),
 
 	ackConnect			= be16(1),
+	ackConnectExt			= be16(16),
 
 	ackSendRequest			= be16(2),
 	ackSendReply			= be16(3),
@@ -745,16 +756,29 @@ ASSERT_SIZE(Ack, 4);
 
 struct AckConnect : public AckHeader {
  private:
-    acnet_taskid_t id_;
+    uint8_t id_;
     uint32_t clientName_;
 
  public:
     AckConnect() : AckHeader(AckList::ackConnect) { }
-    void setTaskId(acnet_taskid_t id) { id_ = id; }
+    void setTaskId(taskid_t id) { id_ = (uint8_t) id.raw(); }
     void setClientName(taskhandle_t clientName) { clientName_ = htonl(clientName.raw()); }
 } __attribute__((packed));
 
 ASSERT_SIZE(AckConnect, 9);
+
+struct AckConnectExt : public AckHeader {
+ private:
+    uint16_t id_;
+    uint32_t clientName_;
+
+ public:
+    AckConnectExt() : AckHeader(AckList::ackConnectExt) { }
+    void setTaskId(taskid_t id) { id_ = htons(id.raw()); }
+    void setClientName(taskhandle_t clientName) { clientName_ = htonl(clientName.raw()); }
+} __attribute__((packed));
+
+ASSERT_SIZE(AckConnectExt, 10);
 
 struct AckSendRequest : public AckHeader {
  private:
@@ -974,7 +998,7 @@ class RpyInfo : public TimeSensitive {
     trunknode_t lclNode_;
     trunknode_t remNode_;
     taskhandle_t taskName_;
-    acnet_taskid_t taskId_;
+    taskid_t taskId_;
     bool mcast;
     reqid_t reqId_;
     time_t initTime_;
@@ -999,7 +1023,7 @@ class RpyInfo : public TimeSensitive {
     bool multicasted() const		{ return mcast; }
     timeval expiration() const 		{ return lastUpdate + REPLY_DELAY * 1000; }
     taskhandle_t taskName() const	{ return taskName_; }
-    acnet_taskid_t taskId() const	{ return taskId_; }
+    taskid_t taskId() const		{ return taskId_; }
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
     reqid_t reqId() const		{ return reqId_; }
@@ -1050,7 +1074,7 @@ class ReplyPool {
  public:
     ReplyPool() : pinger(targetMap) {};
 
-    RpyInfo *alloc(TaskInfo *, reqid_t, acnet_taskid_t, taskhandle_t, trunknode_t, trunknode_t, uint16_t);
+    RpyInfo *alloc(TaskInfo *, reqid_t, taskid_t, taskhandle_t, trunknode_t, trunknode_t, uint16_t);
     void release(RpyInfo *);
 
     RpyInfo* rpyInfo(rpyid_t);
@@ -1086,17 +1110,17 @@ class Noncopyable {
 typedef std::set<reqid_t> ReqList;
 typedef std::set<rpyid_t> RpyList;
 
-#define	MAX_TASKS		(256)
+#define	MAX_TASKS		(1024)
 
 // TaskInfo
 //
 // Information related to all connected  tasks.
 
 class TaskInfo : private Noncopyable {
-    time_t boot;
+    const time_t boot;
     TaskPool& taskPool_;
     taskhandle_t handle_;
-    acnet_taskid_t id_;
+    const taskid_t id_;
 
     static unsigned const maxPendingRequestsAccepted = 256;
 
@@ -1114,7 +1138,7 @@ class TaskInfo : private Noncopyable {
 
     mutable TaskStats stats;
 
-    TaskInfo(TaskPool&, taskhandle_t);
+    TaskInfo(TaskPool&, taskhandle_t, taskid_t);
     virtual ~TaskInfo() {}
 
     void setHandle(taskhandle_t th) { handle_ = th; }
@@ -1131,7 +1155,7 @@ class TaskInfo : private Noncopyable {
     virtual bool equals(TaskInfo const* o) const = 0;
     TaskPool& taskPool() const	{ return taskPool_; }
     taskhandle_t handle() const	{ return handle_; }
-    acnet_taskid_t id() const 	{ return id_; }
+    taskid_t id() const 	{ return id_; }
     bool isReceiving() { return acceptsUsm() || acceptsRequests(); }
 
     // Receiving data from network
@@ -1172,8 +1196,8 @@ class InternalTask : public TaskInfo {
     void _clear_receiving() { }
 
  public:
-    InternalTask(TaskPool& taskPool, taskhandle_t handle) :
-	TaskInfo(taskPool, handle) { }
+    InternalTask(TaskPool& taskPool, taskhandle_t handle, taskid_t id) :
+	TaskInfo(taskPool, handle, id) { }
     virtual ~InternalTask() {}
 
     pid_t pid() const;
@@ -1222,6 +1246,7 @@ class AcnetTask : public InternalTask {
     void packetCountHandler(rpyid_t);
     void taskIdHandler(rpyid_t, uint16_t const* const, uint16_t);
     void taskNameHandler(rpyid_t, uint8_t);
+    void taskNameHandler(rpyid_t, uint16_t const* const, uint16_t);
     void killerMessageHandler(rpyid_t, uint8_t, uint16_t const* const, uint16_t);
     void tasksHandler(rpyid_t, uint8_t);
     void pingHandler(rpyid_t);
@@ -1238,7 +1263,7 @@ class AcnetTask : public InternalTask {
     void requestReport(rpyid_t);
 
  public:
-    AcnetTask(TaskPool&);
+    AcnetTask(TaskPool&, taskid_t);
     virtual ~AcnetTask() {}
 
     char const* name() const { return "AcnetTask"; }
@@ -1265,7 +1290,7 @@ class TaskPool : private Noncopyable {
     TaskHandleMap active;
     TaskList removed;
 
-    int nextFreeTaskId();
+    taskid_t nextFreeTaskId(ConnectCommand const* const);
     void removeInactiveTasks();
 
  public:
@@ -1297,7 +1322,7 @@ class TaskPool : private Noncopyable {
     size_t replyCount() const;
     size_t activeCount() const;
     size_t rumHandleCount() const;
-    TaskInfo* getTask(acnet_taskid_t) const;
+    TaskInfo* getTask(taskid_t) const;
     TaskInfo* getTask(taskhandle_t, uint16_t) const;
     bool taskExists(taskhandle_t) const;
     TaskRangeIterator tasks(taskhandle_t) const;
@@ -1433,7 +1458,7 @@ void sendErrorToNetwork(AcnetHeader const&, status_t);
 void sendKillerMessage(trunknode_t const addr);
 void sendNodesRequestUsm(uint32_t);
 bool sendPendingPackets();
-void sendUsmToNetwork(trunknode_t, taskhandle_t, nodename_t, acnet_taskid_t, uint8_t const*, size_t);
+void sendUsmToNetwork(trunknode_t, taskhandle_t, nodename_t, taskid_t, uint8_t const*, size_t);
 void setPartialBuffer(trunknode_t, DataOut*);
 bool validFromAddress(char const[], trunknode_t, ipaddr_t, ipaddr_t);
 bool validToAddress(char const[], trunknode_t, trunknode_t);
@@ -1475,6 +1500,7 @@ void endRpyToNode(trunknode_t const);
 
 // Global data...
 
+extern const taskid_t AcnetTaskId;
 extern bool termSignal;
 extern int sNetwork;
 extern int sClient;

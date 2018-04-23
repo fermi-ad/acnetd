@@ -20,7 +20,7 @@ protected:
     void handleSend(SendCommand const *, size_t const);
 
  public:
-    RemoteTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, ipaddr_t);
+    RemoteTask(TaskPool&, taskhandle_t, taskid_t, pid_t, uint16_t, uint16_t, ipaddr_t);
     virtual ~RemoteTask() {}
 
     bool acceptsUsm() const { return false; }

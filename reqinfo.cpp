@@ -96,7 +96,7 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
 
     if (req) {
 	if (!req->task().removeRequest(id))
-	    syslog(LOG_WARNING, "didn't remove REQ ID 0x%04x from task %d", id, req->task().id());
+	    syslog(LOG_WARNING, "didn't remove REQ ID 0x%04x from task %d", id, req->task().id().raw());
 
 	if (xmt) {
 

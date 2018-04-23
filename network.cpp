@@ -301,7 +301,7 @@ void dumpPacket(const char* pktType, AcnetHeader const& hdr, void const* d,
     };
     uint16_t const flags = hdr.flags();
 
-    syslog(LOG_INFO, "%s Packet : flags (%s%s%s%s), type %s, status 0x%04x, "
+    syslog(LOG_NOTICE, "%s Packet : flags (%s%s%s%s), type %s, status 0x%04x, "
 	   "svr (0x%04x), clnt (0x%04x), svrTskNm '%s' (0x%08x), "
 	   "cTskId 0x%02x, msgId 0x%04x, msgLen %d -- %s", pktType,
 	   ((flags & ACNET_FLG_CHK) ? " CHK " : ""),
@@ -311,7 +311,7 @@ void dumpPacket(const char* pktType, AcnetHeader const& hdr, void const* d,
 	   txt[(flags & ACNET_FLG_TYPE) >> 1], hdr.status().raw(),
 	   hdr.server().raw(), hdr.client().raw(),
 	   hdr.svrTaskName().str(), hdr.svrTaskName().raw(),
-	   hdr.clntTaskId(), hdr.msgId(), (int) msgLen,
+	   hdr.clntTaskId().raw(), hdr.msgId(), (int) msgLen,
 	   dumpBuffer(d, msgLen - sizeof(AcnetHeader)));
 }
 
@@ -411,7 +411,7 @@ void sendErrorToNetwork(AcnetHeader const& hdr, status_t err)
 // This function queues up a USM to be sent on the network socket.
 
 void sendUsmToNetwork(trunknode_t tgtNode, taskhandle_t tgtTask, nodename_t fromNodeName,
-		      acnet_taskid_t client, uint8_t const* data, size_t len)
+			taskid_t client, uint8_t const* data, size_t len)
 {
     trunknode_t fromNode;
 

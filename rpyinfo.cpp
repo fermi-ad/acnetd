@@ -91,7 +91,7 @@ status_t ReplyPool::sendReplyToNetwork(TaskInfo const* const task,
 }
 
 
-RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, acnet_taskid_t tId,
+RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 		 taskhandle_t tgtTask, trunknode_t lclNode,
 		 trunknode_t remNode, uint16_t flg)
 {
@@ -239,7 +239,7 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 
     if (rpy) {
 	if (!rpy->task().removeReply(rpy->id()))
-	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id, rpy->task().id());
+	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id, rpy->task().id().raw());
 
 #ifdef DEBUG
 	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.", rpy->reqId());
@@ -418,7 +418,7 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<< rpy->task().handle().str() << "'</td></tr>\n"
 	    "\t\t\t\t<tr class=\"even\"><td class=\"label\">Request Origin</td><td>Task " <<
 	    std::setfill(' ') << std::dec <<
-	    (uint32_t) rpy->taskId() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
+	    (uint32_t) rpy->taskId().raw() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
 	    "), request ID 0x" << std::setw(4) << rpy->reqId() << "</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 	printElapsedTime(os, currTime - rpy->initTime());

@@ -10,8 +10,8 @@
 // Creates the object by initializing some default values. Since the default values reflect an unused object, it adds itself
 // to the free list.
 
-TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h) :
-    boot(now().tv_sec), taskPool_(taskPool), handle_(h),
+TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h, taskid_t id) :
+    boot(now().tv_sec), taskPool_(taskPool), handle_(h), id_(id),
     pendingRequests(0), maxPendingRequests(0)
 {
 }
@@ -67,7 +67,7 @@ void TaskInfo::report(std::ostream& os) const
 
     os <<
 	"\t\t\t<tbody>\n"
-	"\t\t\t<tr class=\"even\"><td class=\"label\">ID</td><td>" << std::dec << (uint32_t) id() << "</td></tr>\n"
+	"\t\t\t<tr class=\"even\"><td class=\"label\">ID</td><td>" << std::dec << id().raw() << "</td></tr>\n"
 	"\t\t\t<tr><td class=\"label\">PID</td><td>" << pid() << "</td></tr>\n" <<
 	"\t\t\t<tr class=\"even\"><td class=\"label\">Pending Request</td><td>" << pendingRequests << "</td></tr>\n" <<
 	"\t\t\t<tr><td class=\"label\">Max Pending Requests</td><td>" << maxPendingRequests << "</td></tr>\n" <<

@@ -45,7 +45,7 @@ class ExternalTask : public TaskInfo {
     bool sendMessageToClient(AcnetClientMessage*);
 
  public:
-    ExternalTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t);
+    ExternalTask(TaskPool&, taskhandle_t, taskid_t, pid_t, uint16_t, uint16_t);
     virtual ~ExternalTask() {}
 
     bool stillAlive(int = 0) const;

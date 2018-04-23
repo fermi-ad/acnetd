@@ -1,8 +1,8 @@
 #include "mctask.h"
 
-MulticastTask::MulticastTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
-			     uint16_t dataPort, ipaddr_t mcAddr) :
-    ExternalTask(taskPool, handle, pid, cmdPort, dataPort),  mcAddr(mcAddr)
+MulticastTask::MulticastTask(TaskPool& taskPool, taskhandle_t handle, taskid_t id,
+			    pid_t pid, uint16_t cmdPort, uint16_t dataPort, ipaddr_t mcAddr) :
+    ExternalTask(taskPool, handle, id, pid, cmdPort, dataPort),  mcAddr(mcAddr)
 {
     if (!joinMulticastGroup(sClient, mcAddr))
 	throw std::runtime_error("Couldn't join multicast");

@@ -1,9 +1,9 @@
 #include "remtask.h"
 #include <netdb.h>
 
-RemoteTask::RemoteTask(TaskPool& taskPool, taskhandle_t handle, pid_t pid, uint16_t cmdPort,
-			     uint16_t dataPort, ipaddr_t remoteAddr) :
-    ExternalTask(taskPool, handle, pid, cmdPort, dataPort),  remoteAddr(remoteAddr)
+RemoteTask::RemoteTask(TaskPool& taskPool, taskhandle_t handle, taskid_t id, pid_t pid,
+			    uint16_t cmdPort, uint16_t dataPort, ipaddr_t remoteAddr) :
+    ExternalTask(taskPool, handle, id, pid, cmdPort, dataPort),  remoteAddr(remoteAddr)
 {
 }
 

@@ -17,7 +17,7 @@ class LocalTask : public ExternalTask {
     void handleBlockRequests();
 
  public:
-    LocalTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t);
+    LocalTask(TaskPool&, taskhandle_t, taskid_t, pid_t, uint16_t, uint16_t);
     virtual ~LocalTask() {}
 
     bool acceptsUsm() const { return receiving; }
