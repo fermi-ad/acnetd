@@ -227,8 +227,10 @@ void ReplyPool::endRpyToNode(trunknode_t const tn)
 		task.taskPool().removeTask(&task);
 	    break;
 	}
+#ifdef DEBUG
     syslog(LOG_INFO, "Released (several) reply structures -- pool now has %d "
 	   "active replies", (int) idPool.activeIdCount());
+#endif
 }
 
 void ReplyPool::endRpyId(rpyid_t id, status_t status)
