@@ -14,7 +14,7 @@
 // standard exceptions because you can pass in a printf() like message
 // to the constructor.
 
-class regression : public exception {
+class regression : public std::exception {
     char msg[256];
 
  public:

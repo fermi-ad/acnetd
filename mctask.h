@@ -17,7 +17,7 @@ class MulticastTask : public ExternalTask {
     MulticastTask();
 
  public:
-    MulticastTask(TaskPool&, taskhandle_t, pid_t, uint16_t, uint16_t, ipaddr_t);
+    MulticastTask(TaskPool&, taskhandle_t, taskid_t, pid_t, uint16_t, uint16_t, ipaddr_t);
     virtual ~MulticastTask();
 
     bool acceptsUsm() const { return true; }

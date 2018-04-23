@@ -15,6 +15,8 @@
 #include "remtask.h"
 #include "mctask.h"
 
+const taskid_t AcnetTaskId(0);
+
 TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeName_(nodeName)
 {
     taskStatTimeBase = time(0);
@@ -22,19 +24,21 @@ TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeNam
     for (int ii = 0; ii < MAX_TASKS; ii++)
 	tasks_[ii] = 0;
 
-    tasks_[0] = new AcnetTask(*this);
-    tasks_[0]->id_ = 0;
-    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNET")), tasks_[0]));
-    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNAUX")), tasks_[0]));
+    tasks_[AcnetTaskId.raw()] = new AcnetTask(*this, AcnetTaskId);
+    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNET")), tasks_[AcnetTaskId.raw()]));
+    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNAUX")), tasks_[AcnetTaskId.raw()]));
 }
 
-int TaskPool::nextFreeTaskId()
+taskid_t TaskPool::nextFreeTaskId(ConnectCommand const* const cmd)
 {
-    for (int ii = 0; ii < MAX_TASKS; ii++)
-	if (!tasks_[ii])
-	    return ii;
+    const uint16_t max = cmd->cmd() == CommandList::cmdConnectExt ? MAX_TASKS : UINT8_MAX;
+    const uint16_t min = cmd->cmd() == CommandList::cmdConnectExt ? 256 : 0;
 
-    return -1;
+    for (uint16_t ii = min; ii < max; ii++)
+	if (!tasks_[ii])
+	    return taskid_t(ii);
+
+    throw ACNET_NLM;
 }
 
 void TaskPool::removeInactiveTasks()
@@ -97,9 +101,9 @@ size_t TaskPool::replyCount() const
     return total;
 }
 
-TaskInfo *TaskPool::getTask(acnet_taskid_t id) const
+TaskInfo *TaskPool::getTask(taskid_t id) const
 {
-    return tasks_[id];
+    return tasks_[id.raw()];
 }
 
 TaskRangeIterator TaskPool::tasks(taskhandle_t th) const
@@ -150,6 +154,7 @@ bool TaskPool::isPromiscuous(taskhandle_t name) const
 void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const cmd, size_t len)
 {
     AckConnect ack;
+    AckConnectExt ackExt;
     taskhandle_t clientName = cmd->clientName();
     uint16_t cmdPort = ntohs(in.sin_port);
     uint16_t dataPort = cmd->dataPort();
@@ -175,56 +180,63 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 	    TaskInfo *task = getTask(clientName, cmdPort);
 
 	    if (!task) {
-		int taskId = nextFreeTaskId();
+		taskid_t taskId = nextFreeTaskId(cmd);
 
-		if (taskId > 0) {
-		    // Create a new task based on the connection parameters
+		// Create a new task based on the connection parameters
 
-		    ipaddr_t addr;
+		ipaddr_t addr;
 
-		    if (nameLookup(nodename_t(clientName), addr) && addr.isMulticast())
-			 task = new MulticastTask(*this, clientName, cmd->pid(), cmdPort, dataPort, addr);
-		    else {
-			if (taskExists(clientName))
-			    throw ACNET_NAME_IN_USE;
+		if (nameLookup(nodename_t(clientName), addr) && addr.isMulticast())
+		     task = new MulticastTask(*this, clientName, taskId, cmd->pid(),
+						cmdPort, dataPort, addr);
+		else {
+		    if (taskExists(clientName))
+			throw ACNET_NAME_IN_USE;
 
-			if (len == sizeof(TcpConnectCommand))
-			    task = new RemoteTask(*this, clientName, cmd->pid(), cmdPort, dataPort,
-					    ((TcpConnectCommand const* const) cmd)->remoteAddr());
-			else
-			    task = new LocalTask(*this, clientName, cmd->pid(), cmdPort, dataPort);
-		    }
+		    if (len == sizeof(TcpConnectCommand))
+			task = new RemoteTask(*this, clientName, taskId, cmd->pid(), cmdPort, dataPort,
+						((TcpConnectCommand const* const) cmd)->remoteAddr());
+		    else
+			task = new LocalTask(*this, clientName, taskId, cmd->pid(), cmdPort, dataPort);
+		}
 
-		    task->id_ = (acnet_taskid_t) taskId;
-		    active.insert(TaskHandleMap::value_type(task->handle(), task));
-		    tasks_[taskId] = task;
-		} else
-		    throw ACNET_NLM;
+		active.insert(TaskHandleMap::value_type(task->handle(), task));
+		tasks_[taskId.raw()] = task;
 	    }
 
 	    ack.setTaskId(task->id());
 	    ack.setClientName(clientName);
+
+	    ackExt.setTaskId(task->id());
+	    ackExt.setClientName(clientName);
 	} else
 	    throw ACNET_INVARG;
 
     } catch (status_t err) {
 	ack.setStatus(err);
+	ackExt.setStatus(err);
+	syslog(LOG_ERR, "failed connect for %s - %d", clientName.str(), err.raw());
     } catch (...) {
 	ack.setStatus(ACNET_NLM);
+	ackExt.setStatus(ACNET_NLM);
 	syslog(LOG_ERR, "failed connect for %s", clientName.str());
     }
 
 //#ifdef DEBUG
     {
 	char cBuf[16], nBuf[16];
-	syslog(LOG_DEBUG, "	connect: port:%d task:'%s' node:'%s' err:%d",
-	       dataPort, clientName.str(cBuf), cmd->virtualNodeName().str(nBuf), ack.status().raw());
+	syslog(LOG_INFO, "	connect: port:%d task:'%s' node:'%s' err:%d",
+	       dataPort, clientName.str(cBuf), cmd->virtualNodeName().str(nBuf), ackExt.status().raw());
     }
 //#endif
 
     // Send ack back to the client
 
-    (void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, sizeof(sockaddr_in));
+    if (cmd->cmd() == CommandList::cmdConnectExt) {
+	(void) sendto(sClient, &ackExt, sizeof(ackExt), 0, (sockaddr*) &in, sizeof(sockaddr_in));
+	syslog(LOG_WARNING, "send extended connect ack");
+    } else
+	(void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, sizeof(sockaddr_in));
 }
 
 size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
@@ -243,7 +255,7 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
 	    for (int ii = 0; ii < MAX_TASKS; ii++) {
 		if (tasks_[ii]) {
 		    *ptr++ = htoal(subType ? tasks_[ii]->pid() : tasks_[ii]->handle().raw());
-		    *ptr2++ = tasks_[ii]->id();
+		    *ptr2++ = (uint8_t) tasks_[ii]->id().raw();
 		}
 	    }
 	    return sizeof(uint16_t) + sizeof(uint32_t) * count + ((count + 1) & ~1);
@@ -268,9 +280,9 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
 		    uint16_t* const tmp = rep + (1 + 2 * taskHandleCount);
 
 		    if (idx & 1)
-			tmp[idx / 2] = htoas((tasks_[ii]->id() << 8) | atohs(tmp[idx / 2]));
+			tmp[idx / 2] = htoas((tasks_[ii]->id().raw() << 8) | atohs(tmp[idx / 2]));
 		    else
-			tmp[idx / 2] = htoas(tasks_[ii]->id());
+			tmp[idx / 2] = htoas(tasks_[ii]->id().raw());
 		    ++idx;
 		}
 	    }
@@ -280,11 +292,14 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
 	break;
 
      case 3:
+	removeInactiveTasks();
+
 	// Return task id, handle and status in one shot
+	//
 	{
 	    uint16_t taskHandleCount = 0;
 	    typedef struct {
-		acnet_taskid_t taskId;
+		uint16_t taskId;
 		uint8_t flags;
 		uint32_t hTask;
 		uint32_t pid;
@@ -293,7 +308,7 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
 
 	    for (int ii = 0; ii < MAX_TASKS; ii++) {
 		if (tasks_[ii]) {
-		    ptr->taskId = tasks_[ii]->id();
+		    ptr->taskId = htoas(tasks_[ii]->id().raw());
 		    ptr->flags = 0;
 		    if (tasks_[ii]->isReceiving())
 			ptr->flags |= 0x01;
@@ -378,7 +393,7 @@ size_t TaskPool::fillBufferWithTaskStats(uint8_t subType, void* buf)
 	TaskInfo *task = tasks_[ii];
 
 	if (task) {
-	    ts->taskId = htoas(task->id());
+	    ts->taskId = htoas(task->id().raw());
 	    ts->hTask = htoal(task->handle().raw());
 	    ts->statCnts[0] = htoas((uint16_t) task->stats.usmXmt);
 	    ts->statCnts[1] = htoas((uint16_t) task->stats.reqXmt);
@@ -419,7 +434,7 @@ void TaskPool::removeOnlyThisTask(TaskInfo* const task, status_t status, bool se
 {
     assert(tasks_[task->id()]);
 
-    tasks_[task->id()] = 0;
+    tasks_[task->id().raw()] = 0;
 
     // Find and remove it from the active map.
 

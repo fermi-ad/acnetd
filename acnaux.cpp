@@ -9,19 +9,19 @@ void sendKillerMessage(trunknode_t const addr)
     static taskhandle_t const task(ator("ACNET"));
     uint16_t const data[] = { htoas(0x20b), htoas(1), htoas(addr.raw()) };
 
-    sendUsmToNetwork(ACNET_MULTICAST, task, nodename_t(), 0,
+    sendUsmToNetwork(ACNET_MULTICAST, task, nodename_t(), AcnetTaskId,
 		     reinterpret_cast<uint8_t const*>(data), sizeof(data));
 }
 
-AcnetTask::AcnetTask(TaskPool& taskPool) :
-    InternalTask(taskPool, taskhandle_t(ator("ACNET")))
+AcnetTask::AcnetTask(TaskPool& taskPool, taskid_t id) :
+    InternalTask(taskPool, taskhandle_t(ator("ACNET")), id)
 {
 }
 
 void AcnetTask::versionHandler(rpyid_t id)
 {
     static uint16_t const rpy[] =
-	{ htoas(0x0914), htoas(0x0804), htoas(0x0800) };
+	{ htoas(0x0914), htoas(0x0804), htoas(0x0900) };
 
     sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
 }
@@ -65,7 +65,7 @@ void AcnetTask::taskIdHandler(rpyid_t id, uint16_t const* const data, uint16_t d
 	auto const ii = taskPool().tasks(taskName);
 
 	if (ii.first != ii.second) {
-	    uint16_t const rpy = htoas(ii.first->second->id());
+	    uint16_t const rpy = htoas(ii.first->second->id().raw());
 
 	    sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
 	} else
@@ -76,7 +76,7 @@ void AcnetTask::taskIdHandler(rpyid_t id, uint16_t const* const data, uint16_t d
 
 void AcnetTask::taskNameHandler(rpyid_t id, uint8_t subType)
 {
-    TaskInfo const* const tmp = taskPool().getTask(subType);
+    TaskInfo const* const tmp = taskPool().getTask(taskid_t((uint16_t) subType));
 
     if (tmp) {
 	uint32_t const rpy = htoal(tmp->handle().raw());
@@ -84,6 +84,21 @@ void AcnetTask::taskNameHandler(rpyid_t id, uint8_t subType)
 	sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
     } else
 	sendLastReply(id, ACNET_NOTASK);
+}
+
+void AcnetTask::taskNameHandler(rpyid_t id, uint16_t const* const data, uint16_t dataSize)
+{
+    if (dataSize == sizeof(taskid_t) / 2) {
+	TaskInfo const* const tmp = taskPool().getTask(taskid_t(atohs(data[0])));
+
+	if (tmp) {
+	    uint32_t const rpy = htoal(tmp->handle().raw());
+
+	    sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
+	} else
+	    sendLastReply(id, ACNET_NOTASK);
+    } else
+	sendLastReply(id, ACNET_LEVEL2);
 }
 
 void AcnetTask::killerMessageHandler(rpyid_t id, uint8_t subType, uint16_t const* const data, uint16_t dataSize)
@@ -117,7 +132,7 @@ void AcnetTask::killerMessageHandler(rpyid_t id, uint8_t subType, uint16_t const
 
 void AcnetTask::tasksHandler(rpyid_t id, uint8_t subType)
 {
-    uint16_t rpy[4069];
+    uint16_t rpy[32 * 1024];
 
     sendLastReply(id, ACNET_SUCCESS, rpy + 1, taskPool().fillBufferWithTaskInfo(subType, rpy + 1));
 }
@@ -184,7 +199,7 @@ void AcnetTask::nodeStatsHandler(rpyid_t id, uint8_t subType)
 
 void AcnetTask::tasksStatsHandler(rpyid_t id, uint8_t subType)
 {
-    uint16_t rpy[4096];
+    uint16_t rpy[INTERNAL_ACNET_USER_PACKET_SIZE];
 
     sendLastReply(id, ACNET_SUCCESS, rpy, taskPool().fillBufferWithTaskStats(subType, rpy));
 }
@@ -534,6 +549,10 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 
 	     case 17:
 		ipNodeTableHandler(id, subType, data, dataLen);
+		break;
+
+	     case 18:
+		taskNameHandler(id, data, dataLen);
 		break;
 
 	     default:

@@ -257,7 +257,7 @@ bool rejectTask(taskhandle_t const task)
 void dumpIncomingAcnetPackets(bool const status)
 {
     dumpIncoming = status;
-    syslog(LOG_INFO, "Dumping incoming ACNET packets: %s", status ? "ON" : "OFF");
+    syslog(LOG_NOTICE, "Dumping incoming ACNET packets: %s", status ? "ON" : "OFF");
 }
 
 timeval const& now()
@@ -379,7 +379,7 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	if (hdr.clntTaskId() != rpy->taskId()) {
 	    syslog(LOG_ERR, "mismatched CANCEL task id (%d != %d) "
 		   "received from node 0x%04x",
-		   hdr.clntTaskId(), rpy->taskId(), hdr.client().raw());
+		   hdr.clntTaskId().raw(), rpy->taskId().raw(), hdr.client().raw());
 	    return;
 	}
 
@@ -599,7 +599,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
     ReqInfo* const req = taskPool->reqPool.entry(msgId);
 
     if (req && (hdr.server() == req->remNode() || req->multicasted()) &&
-	hdr.svrTaskName() == req->taskName()) {
+	hdr.svrTaskName() == req->taskName() && hdr.clntTaskId() == req->task().id()) {
 
 	// Check every 5 seconds to see if the task that's receiving replies
 	// is still alive.  We throttle it because the call is too expensive
@@ -966,7 +966,7 @@ static bool handleClientCommand()
 
 		if (!taskPool)
 		    sendClientError(in, ACNET_NO_NODE);
-		else if (CommandList::cmdConnect == cmdHdr->cmd()) {
+		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd()) {
 
 		    // Make sure the packet size is correct. (TP-3)
 
@@ -1195,7 +1195,7 @@ static int waitingForNodeTable()
 		sent = true;
 	    }
 	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t(ator("NODES")),
-			     nodename_t(), 0, 0, 0);
+			     nodename_t(), AcnetTaskId, 0, 0);
 	    lastNodeTableDownloadRequestTime += 10;
 	    return 10000;
 	} else
