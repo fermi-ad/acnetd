@@ -214,13 +214,13 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 	syslog(LOG_ERR, "failed connect for %s", clientName.str());
     }
 
-#ifdef DEBUG
+//#ifdef DEBUG
     {
 	char cBuf[16], nBuf[16];
 	syslog(LOG_DEBUG, "	connect: port:%d task:'%s' node:'%s' err:%d",
 	       dataPort, clientName.str(cBuf), cmd->virtualNodeName().str(nBuf), ack.status().raw());
     }
-#endif
+//#endif
 
     // Send ack back to the client
 

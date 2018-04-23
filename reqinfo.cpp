@@ -83,7 +83,9 @@ void RequestPool::cancelReqToNode(trunknode_t const tn)
 		task.taskPool().removeTask(&task);
 	    break;
 	}
+#ifdef DEBUG
     syslog(LOG_INFO, "Released several request structures -- %d active requests remaining", (int) idPool.activeIdCount());
+#endif
 }
 
 // Free given request id
