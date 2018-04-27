@@ -23,7 +23,7 @@
 #		over the network. All ACNET nodes on a network need to
 #		be built the same way with respect to this option.
 #
-# NO_PINGER	Don't compile in the internal task that occasionally
+# PINGER	Compile in the internal task that occasionally
 #		pings nodes to which it's replying.
 #
 # KEEP_ALIVE	Enables the request timeout code. Requests now require
@@ -60,8 +60,8 @@ ifdef NO_REPORT
 CFLAGS+=	-DNO_REPORT
 endif
 
-ifdef NO_PINGER
-CFLAGS+=	-DNO_PINGER
+ifdef PINGER
+CFLAGS+=	-DPINGER
 endif
 
 ifdef DEBUG

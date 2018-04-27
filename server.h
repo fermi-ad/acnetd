@@ -1035,7 +1035,7 @@ class RpyInfo : public TimeSensitive {
 class ReplyPool {
  friend class RpyInfo;
 
-    #ifndef NO_PINGER
+    #ifdef PINGER
     typedef std::map<trunknode_t, unsigned> ActiveTargetMap;
 
     class Pinger {
