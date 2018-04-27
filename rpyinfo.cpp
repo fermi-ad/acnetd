@@ -171,7 +171,7 @@ void ReplyPool::release(RpyInfo *rpy)
 	targetMap.erase(rpy->remNode());
 #endif
 
-    activeMap.erase(request_key_t(rpy->remNode(), rpy->id()));
+    activeMap.erase(request_key_t(rpy->remNode(), rpy->reqId()));
     rpy->task_ = 0;
     rpy->detach();
     idPool.release(rpy);
