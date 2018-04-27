@@ -122,7 +122,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
     activeMap.insert(ActiveMap::value_type(unique_node_key(remNode, msgId), rpy));
 
     try {
-#ifndef NO_PINGER
+#ifdef PINGER
 	auto const ii = targetMap.find(remNode);
 
 	if (ii != targetMap.end())
@@ -148,7 +148,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 		       (int) idPool.activeIdCount());
 #endif
 	    }
-#ifndef NO_PINGER
+#ifdef PINGER
 	}
 	catch (...) {
 	    if (!--(ii->second))
@@ -167,7 +167,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 
 void ReplyPool::release(RpyInfo *rpy)
 {
-#ifndef NO_PINGER
+#ifdef PINGER
     auto const ii = targetMap.find(rpy->remNode());
 
     assert(ii != targetMap.end());
