@@ -5,11 +5,6 @@
 #endif
 #include "server.h"
 
-static inline uint32_t unique_node_key(trunknode_t n, uint16_t m)
-{
-    return (uint32_t(n.raw()) << 16) | uint32_t(m);
-}
-
 rpyid_t RpyInfo::id() const
 {
     return task().taskPool().rpyPool.idPool.id(this);
@@ -25,7 +20,7 @@ bool RpyInfo::xmitReply(status_t status, void const* const data,
 
     if (!beenAcked())
 	syslog(LOG_WARNING, "implicitly decremented the pending count for "
-				"REPLY 0x%04x", id());
+				"REPLY 0x%04x", id().raw());
 
     AcnetHeader hdr(ACNET_FLG_RPY, status, lclNode(), remNode(), taskName(), taskId(),
 		    reqId(), sizeof(AcnetHeader) + MSG_LENGTH(n));
@@ -119,7 +114,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
     // Insert the data into our lookup table. If the insert was successful,
     // we're done.
 
-    activeMap.insert(ActiveMap::value_type(unique_node_key(remNode, msgId), rpy));
+    activeMap.insert(ActiveMap::value_type(request_key_t(remNode, msgId), rpy));
 
     try {
 #ifdef PINGER
@@ -158,7 +153,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 #endif
     }
     catch (...) {
-	activeMap.erase(unique_node_key(remNode, msgId));
+	activeMap.erase(request_key_t(remNode, msgId));
 	throw;
     }
 
@@ -176,7 +171,7 @@ void ReplyPool::release(RpyInfo *rpy)
 	targetMap.erase(rpy->remNode());
 #endif
 
-    activeMap.erase(unique_node_key(rpy->remNode(), rpy->id()));
+    activeMap.erase(request_key_t(rpy->remNode(), rpy->id()));
     rpy->task_ = 0;
     rpy->detach();
     idPool.release(rpy);
@@ -189,7 +184,7 @@ RpyInfo* ReplyPool::rpyInfo(rpyid_t id)
 
 RpyInfo* ReplyPool::rpyInfo(trunknode_t node, reqid_t id)
 {
-    auto ii = activeMap.find(unique_node_key(node, id));
+    auto ii = activeMap.find(request_key_t(node, id));
 
     return ii != activeMap.end() ? ii->second : 0;
 }
@@ -204,7 +199,7 @@ void ReplyPool::endRpyToNode(trunknode_t const tn)
 
 	    if (dumpOutgoing)
 		syslog(LOG_INFO, "sending faked CANCEL for reply 0x%04x",
-		       id);
+		       id.raw());
 
 	    // Send a faked out CANCEL reply to the local client so that
 	    // it can gracefully clean up its resources.
@@ -239,7 +234,7 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 
     if (rpy) {
 	if (!rpy->task().removeReply(rpy->id()))
-	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id, rpy->task().id().raw());
+	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id.raw(), rpy->task().id().raw());
 
 #ifdef DEBUG
 	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.", rpy->reqId());
@@ -268,7 +263,7 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 
 	    // Tell the local client that this request is cancelled
 
-	    AcnetHeader const hdr(ACNET_FLG_CAN, (status_t) rpy->id(),
+	    AcnetHeader const hdr(ACNET_FLG_CAN, (status_t) rpy->id().raw(),
 				    rpy->lclNode(), rpy->remNode(),
 				    rpy->taskName(), rpy->task().id(), rpy->reqId(),
 				    sizeof(AcnetHeader));
@@ -282,7 +277,7 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 	// object and erase it.
 
 	ActiveRangeIterator ii =
-	    activeMap.equal_range(unique_node_key(rpy->remNode(), rpy->reqId()));
+	    activeMap.equal_range(request_key_t(rpy->remNode(), rpy->reqId()));
 
 	while (ii.first != ii.second) {
 	    auto const current = ii.first;
@@ -359,7 +354,7 @@ void ReplyPool::fillActiveReplies(AcnetRpyList& rl, uint8_t subType, uint16_t co
     rl.total = 0;
     while (0 != (rpy = idPool.next(rpy)))
 	if (!n || rpyInList(rpy, subType, data, n))
-	    rl.ids[rl.total++] = htoas(rpy->id());
+	    rl.ids[rl.total++] = htoas(rpy->id().raw());
 }
 
 bool ReplyPool::fillReplyDetail(rpyid_t id, rpyDetail* const buf)
@@ -371,7 +366,7 @@ bool ReplyPool::fillReplyDetail(rpyid_t id, rpyDetail* const buf)
 #endif
 
     if (rpy) {
-	buf->id = htoas(id);
+	buf->id = htoas(id.raw());
 	buf->remNode = htoas(rpy->remNode().raw());
 	buf->remName = htoal(rpy->taskName().raw());
 	buf->lclName = htoal(rpy->task().handle().raw());
@@ -411,7 +406,7 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    "\t\t\t</colgroup>\n"
 	    "\t\t\t<thead>\n"
 	    "\t\t\t\t<tr><td colspan=\"2\">Reply 0x" << std::hex << std::setw(4) <<
-	    std::setfill('0') << rpy->id() <<
+	    std::setfill('0') << rpy->id().raw() <<
 	    (rpy->isMultReplier() ? " (MLT)" : "") << "</td></tr>\n"
 	    "\t\t\t</thead>\n"
 	    "\t\t\t<tbody>\n"
@@ -419,7 +414,7 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    "\t\t\t\t<tr class=\"even\"><td class=\"label\">Request Origin</td><td>Task " <<
 	    std::setfill(' ') << std::dec <<
 	    (uint32_t) rpy->taskId().raw() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
-	    "), request ID 0x" << std::setw(4) << rpy->reqId() << "</td></tr>\n"
+	    "), request ID 0x" << std::setw(4) << rpy->reqId().raw() << "</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 	printElapsedTime(os, currTime - rpy->initTime());
 	os << " ago.</td></tr>\n";

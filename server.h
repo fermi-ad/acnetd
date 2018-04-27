@@ -18,6 +18,7 @@
 #include <memory>
 #include <stdexcept>
 #include "idpool.h"
+#include "trunknode.h"
 
 class TaskPool;
 
@@ -103,13 +104,33 @@ uint32_t ator(char const *);
 char const* rtoa(uint32_t, char * = 0);
 char const* rtoa_strip(uint32_t, char * = 0);
 
-typedef uint16_t reqid_t;
-typedef uint16_t rpyid_t;
-typedef uint8_t	trunk_t;
-typedef uint8_t	node_t;
-typedef struct {
+struct time48_t {
     uint16_t t[3];
-} __attribute__((packed)) time48_t;
+} __attribute__((packed));
+
+class reqid_t {
+    uint16_t id_;
+
+ public:
+    explicit reqid_t() : id_(0) {}
+    explicit reqid_t(uint16_t id) : id_(id) {}
+    bool operator< (reqid_t const o) const { return id_ < o.id_; }
+    bool operator== (reqid_t const o) const { return id_ == o.id_; }
+    bool operator!= (reqid_t const o) const { return id_ != o.id_; }
+    uint16_t raw() const { return id_; }
+};
+
+class rpyid_t {
+    uint16_t id_;
+
+ public:
+    explicit rpyid_t() : id_(0) {}
+    explicit rpyid_t(uint16_t id) : id_(id) {}
+    bool operator< (rpyid_t const o) const { return id_ < o.id_; }
+    bool operator== (rpyid_t const o) const { return id_ == o.id_; }
+    bool operator!= (rpyid_t const o) const { return id_ != o.id_; }
+    uint16_t raw() const { return id_; }
+};
 
 class taskid_t {
     uint16_t id_;
@@ -256,7 +277,6 @@ struct NodeStats {
 
 std::string rtos(nodename_t);
 
-#include "trunknode.h"
 
 // Acnet header macros
 
@@ -290,9 +310,6 @@ std::string rtos(nodename_t);
 #define PKT_IS_USM(f)	   (PKT_USM_FLDS(f) == ACNET_FLG_USM)
 #define PKT_IS_CANCEL(f)   (PKT_USM_FLDS(f) == ACNET_FLG_CAN)
 
-#define	ACNET_MIN_TRUNK		(9)		// minimum IP trunk number
-#define	ACNET_MAX_TRUNK		(14)		// maximum IP trunk number
-
 #define ACNET_MULTICAST trunknode_t(255)	// Multicast to all nodes
 
 #define	RPY_M_ENDMULT		(0x02)		// terminate multiple reply request
@@ -318,20 +335,20 @@ class AcnetHeader {
 
  public:
     AcnetHeader();
-    AcnetHeader(uint16_t, status_t, trunknode_t, trunknode_t, taskhandle_t, taskid_t, uint16_t, uint16_t);
+    AcnetHeader(uint16_t, status_t, trunknode_t, trunknode_t, taskhandle_t, taskid_t, reqid_t, uint16_t);
     uint16_t flags() const { return atohs(flags_); }
     status_t status() const { return status_t(atohs(status_)); }
-    trunknode_t client() const { return trunknode_t(cTrunk_, cNode_); }
-    trunknode_t server() const { return trunknode_t(sTrunk_, sNode_); }
+    trunknode_t client() const { return trunknode_t(trunk_t(size_t(cTrunk_)), node_t(size_t(cNode_))); }
+    trunknode_t server() const { return trunknode_t(trunk_t(size_t(sTrunk_)), node_t(size_t(sNode_))); }
     taskhandle_t svrTaskName() const { return taskhandle_t(atohl(svrTaskName_)); }
     taskid_t clntTaskId() const { return taskid_t(atohs(clntTaskId_)); }
-    uint16_t msgId() const { return atohs(msgId_); }
+    reqid_t msgId() const { return reqid_t(atohs(msgId_)); }
     uint16_t msgLen() const { return atohs(msgLen_); }
     uint8_t const *msg() const { return msg_; }
 
     void setStatus(status_t status) { status_ = htoas(status.raw()); }
     void setFlags(uint16_t flags) { flags_ = htoas(flags); }
-    void setClient(trunknode_t tn) { cTrunk_ = tn.trunk(); cNode_ = tn.node(); }
+    void setClient(trunknode_t tn) { cTrunk_ = tn.trunk().raw(); cNode_ = tn.node(); }
     bool isEMR();
 } __attribute((packed));
 
@@ -645,13 +662,13 @@ ASSERT_SIZE(SendRequestWithTimeoutCommand, 22);
 
 struct SendReplyCommand : public CommandHeaderBase<CommandList::cmdSendReply> {
  private:
-    rpyid_t rpyid_;
+    uint16_t rpyid_;
     uint16_t flags_;
     int16_t status_;
     uint8_t data_[];
 
  public:
-    inline rpyid_t rpyid() const { return ntohs(rpyid_); }
+    inline rpyid_t rpyid() const { return rpyid_t(ntohs(rpyid_)); }
     inline uint16_t flags() const { return ntohs(flags_); }
     inline status_t status() const { return status_t(ntohs(status_)); }
     inline uint8_t const *data() const { return data_; }
@@ -663,20 +680,20 @@ struct IgnoreRequestCommand :
     public CommandHeaderBase<CommandList::cmdIgnoreRequest> {
 
  private:
-    rpyid_t rpyid_;
+    uint16_t rpyid_;
 
  public:
-    inline rpyid_t rpyid() const { return ntohs(rpyid_); }
+    inline rpyid_t rpyid() const { return rpyid_t(ntohs(rpyid_)); }
 } __attribute__((packed));
 
 ASSERT_SIZE(IgnoreRequestCommand, 12);
 
 struct CancelCommand : public CommandHeaderBase<CommandList::cmdCancel> {
  private:
-    reqid_t reqid_;
+    uint16_t reqid_;
 
  public:
-    inline reqid_t reqid() const { return ntohs(reqid_); }
+    inline reqid_t reqid() const { return reqid_t(ntohs(reqid_)); }
 } __attribute__((packed));
 
 ASSERT_SIZE(CancelCommand, 12);
@@ -691,10 +708,10 @@ struct RequestAckCommand :
     public CommandHeaderBase<CommandList::cmdRequestAck> {
 
  private:
-    rpyid_t rpyid_;
+    uint16_t rpyid_;
 
  public:
-    inline rpyid_t rpyid() const { return ntohs(rpyid_); }
+    inline rpyid_t rpyid() const { return rpyid_t(ntohs(rpyid_)); }
 } __attribute__((packed));
 
 ASSERT_SIZE(RequestAckCommand, 12);
@@ -782,11 +799,11 @@ ASSERT_SIZE(AckConnectExt, 10);
 
 struct AckSendRequest : public AckHeader {
  private:
-    reqid_t reqid_;
+    uint16_t reqid_;
 
  public:
     AckSendRequest() : AckHeader(AckList::ackSendRequest) { }
-    void setRequestId(reqid_t reqid) { reqid_ = htons(reqid); }
+    void setRequestId(reqid_t reqid) { reqid_ = htons(reqid.raw()); }
 } __attribute__((packed));
 
 ASSERT_SIZE(AckSendRequest, 6);
@@ -803,12 +820,12 @@ ASSERT_SIZE(AckSendReply, 6);
 
 struct AckNameLookup : public AckHeader {
  private:
-    trunk_t trunk;
-    node_t node;
+    uint8_t trunk;
+    uint8_t node;
 
  public:
     AckNameLookup() : AckHeader(AckList::ackNameLookup) { }
-    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk(); node = addr.node(); }
+    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk().raw(); node = addr.node(); }
 } __attribute__((packed));
 
 ASSERT_SIZE(AckNameLookup, 6);
@@ -901,12 +918,12 @@ struct reqDetail {
 
 struct AcnetReqList {
     uint16_t total;
-    reqid_t ids[N_REQID];
+    uint16_t ids[N_REQID];
 };
 
 struct AcnetRpyList {
     uint16_t total;
-    rpyid_t ids[N_RPYID];
+    uint16_t ids[N_RPYID];
 };
 
 #include "timesensitive.h"
@@ -952,10 +969,10 @@ class RequestPool {
  private:
     IdPool<ReqInfo, reqid_t, N_REQID> idPool;
     Node root;
+    void release(ReqInfo *);
 
  public:
     ReqInfo *alloc(TaskInfo*, taskhandle_t, trunknode_t, trunknode_t, uint16_t, uint32_t);
-    void release(ReqInfo *);
 
     bool cancelReqId(reqid_t, bool = true, bool = false);
     void cancelReqToNode(trunknode_t const);
@@ -1058,7 +1075,18 @@ class ReplyPool {
     #endif
 
  private:
-    typedef std::multimap<uint32_t, RpyInfo*> ActiveMap;
+    class request_key_t {
+	uint32_t key_;
+
+     public:
+	explicit request_key_t(trunknode_t n, reqid_t id) :
+			key_((uint32_t(n.raw()) << 16) | uint32_t(id.raw())) {}
+	bool operator< (request_key_t const o) const { return key_ < o.key_; }
+	bool operator== (request_key_t const o) const { return key_ == o.key_; }
+	bool operator!= (request_key_t const o) const { return key_ != o.key_; }
+    };
+
+    typedef std::multimap<request_key_t, RpyInfo*> ActiveMap;
     typedef std::pair<ActiveMap::iterator, ActiveMap::iterator> ActiveRangeIterator;
 
     IdPool<RpyInfo, rpyid_t, N_REQID> idPool;
@@ -1066,22 +1094,26 @@ class ReplyPool {
 
     ActiveMap activeMap;
 
-    #ifndef NO_PINGER
+    #ifdef PINGER
     ActiveTargetMap targetMap;
     Pinger pinger;
     #endif
 
+    void release(RpyInfo *);
+
  public:
+    #ifdef PINGER
     ReplyPool() : pinger(targetMap) {};
+    #else
+    ReplyPool() {};
+    #endif
 
     RpyInfo *alloc(TaskInfo *, reqid_t, taskid_t, taskhandle_t, trunknode_t, trunknode_t, uint16_t);
-    void release(RpyInfo *);
 
     RpyInfo* rpyInfo(rpyid_t);
     RpyInfo* rpyInfo(trunknode_t, reqid_t);
 
     RpyInfo *next(RpyInfo const * const rpy) const 	{ return idPool.next(rpy); }
-    RpyInfo *entry(reqid_t const id) 			{ return idPool.entry(id); }
 
     status_t sendReplyToNetwork(TaskInfo const*, rpyid_t, status_t, void const*, size_t, bool);
     void endRpyToNode(trunknode_t const);

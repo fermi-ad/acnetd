@@ -402,7 +402,7 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	if (!rpy->beenAcked())
 	    task.decrementPendingRequests();
 
-	hdr.setStatus((status_t) rpy->id());
+	hdr.setStatus((status_t) rpy->id().raw());
 	taskPool->rpyPool.endRpyId(rpy->id());
 
 	if (task.sendDataToClient(&hdr)) {
@@ -480,7 +480,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 			// CANCELs) for the reason we stuff the reply ID in
 			// the status field.
 
-			hdr.setStatus((status_t) rpy->id());
+			hdr.setStatus((status_t) rpy->id().raw());
 			if (task->sendDataToClient(&hdr)) {
 			    ++task->stats.reqRcv;
 			    continue;
@@ -591,7 +591,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 
 static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 {
-    uint16_t const msgId = hdr.msgId();
+    reqid_t const msgId = hdr.msgId();
 
     // Look up the request structure. If we don't have that request active,
     // return a CANCEL so the remote system can clean up their tables.
@@ -658,7 +658,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 		} else {
 		    syslog(LOG_WARNING, "Trouble communicating with %s, shutting "
 			   "down request 0x%04x", req->task().handle().str(),
-			   msgId);
+			   msgId.raw());
 		    taskPool->reqPool.cancelReqId(msgId, A || B);
 		}
 	    }
@@ -676,7 +676,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Sent CANCEL to 0x%04x for bad req id 0x%04x "
 		   "from task 0x%08x", hdr.server().raw(),
-		   msgId, hdr.svrTaskName().raw());
+		   msgId.raw(), hdr.svrTaskName().raw());
     }
 }
 
@@ -699,7 +699,7 @@ static ipaddr_t ipAddress(trunknode_t& tn, ipaddr_t const defAddress, bool tempA
 	else if (!lastNodeTableDownloadTime() && tempAdd) {
 	    updateAddr(tn, nodename_t(-1), defAddress);
 	    syslog(LOG_WARNING, "Temporarily adding %s for node 0x%02x%02x",
-		    defAddress.str().c_str(), tn.trunk(), tn.node());
+		    defAddress.str().c_str(), tn.trunk().raw(), tn.node());
 	    return defAddress;
 	} else
 	    return ipaddr_t();
@@ -778,7 +778,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (!inClient.isValid()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from %s -- bad client node 0x%02x%02x",
-		   ip.str().c_str(), ctn.trunk(), ctn.node());
+		   ip.str().c_str(), ctn.trunk().raw(), ctn.node());
 	return;
     }
 
@@ -788,7 +788,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (inClient.isMulticast() || ip.isMulticast()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from multicast node 0x%02x%02x (ip = %s)",
-			ctn.trunk(), ctn.node(), ip.str().c_str());
+			ctn.trunk().raw(), ctn.node(), ip.str().c_str());
 	return;
     }
 
@@ -800,7 +800,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (!inServer.isValid()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from %s -- bad server node 0x%02x%02x",
-		    ip.str().c_str(), ctn.trunk(), ctn.node());
+		    ip.str().c_str(), ctn.trunk().raw(), ctn.node());
 	return;
     }
 

@@ -108,6 +108,9 @@ class IdPool {
 
 	assert(begin() + idx == entry);
 
+	if (!inUse.test(idx))
+	    syslog(LOG_WARNING, "RELEASE OF UNUSED ENTRY");
+
 	freeList.push(idx);
 	inUse.reset(idx);
     }
@@ -128,7 +131,7 @@ class IdPool {
     {
 	uint16_t ii = idToIndex(id);
 
-	return (ii | bank) == id && ii < size && inUse.test(ii) ? begin() + ii : 0;
+	return (ii | bank) == id.raw() && ii < size && inUse.test(ii) ? begin() + ii : 0;
     }
 
     R id(T const* const entry) const
@@ -140,7 +143,7 @@ class IdPool {
 
 	assert(begin() + idx == entry);
 
-	return idx | bank;
+	return R(idx | bank);
     }
 
     size_t freeIdCount() const
@@ -161,7 +164,7 @@ class IdPool {
  private:
     inline static uint16_t idToIndex(R const id)
     {
-	return id & (size - 1);
+	return id.raw() & (size - 1);
     }
 
     static uint16_t bankGen()

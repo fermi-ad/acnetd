@@ -33,11 +33,11 @@ AcnetHeader::AcnetHeader() :
 
 AcnetHeader::AcnetHeader(uint16_t flags, status_t status, trunknode_t svrNode,
 			 trunknode_t clntNode, taskhandle_t svrTaskName,
-			 taskid_t clntTaskId, uint16_t msgId, uint16_t msgLen) :
-    flags_(htoas(flags)), status_(htoas(status.raw())), sTrunk_(svrNode.trunk()),
-    sNode_(svrNode.node()), cTrunk_(clntNode.trunk()), cNode_(clntNode.node()),
+			 taskid_t clntTaskId, reqid_t msgId, uint16_t msgLen) :
+    flags_(htoas(flags)), status_(htoas(status.raw())), sTrunk_(svrNode.trunk().raw()),
+    sNode_(svrNode.node()), cTrunk_(clntNode.trunk().raw()), cNode_(clntNode.node()),
     svrTaskName_(htoal(svrTaskName.raw())), clntTaskId_(htoas(clntTaskId.raw())),
-    msgId_(htoas(msgId)), msgLen_(htoas(msgLen))
+    msgId_(htoas(msgId.raw())), msgLen_(htoas(msgLen))
 {
 }
 

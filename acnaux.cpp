@@ -206,8 +206,9 @@ void AcnetTask::tasksStatsHandler(rpyid_t id, uint8_t subType)
 
 void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* const data, size_t dataSize)
 {
-    #define WRITE_FLG	(0x80)
-    #define SINGLE_FLG	(0x40)
+    #define WRITE_FLG		(0x80)
+    #define SINGLE_FLG		(0x40)
+    #define ACNET_MIN_TRUNK	(9)
 
     size_t trunkIndex = subType & 0x0F;
 
@@ -228,8 +229,8 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 			uint32_t const* const name = (uint32_t*) (addr + numEntries);
 
 			sendLastReply(id, ACNET_SUCCESS);
-			for (int ii = 0; ii < numEntries; ++ii)
-			    updateAddr(trunknode_t((trunk_t) (trunkIndex + ACNET_MIN_TRUNK),
+			for (size_t ii = 0; ii < numEntries; ++ii)
+			    updateAddr(trunknode_t(trunk_t(trunkIndex + ACNET_MIN_TRUNK),
 						   (node_t) ii),
 				       nodename_t(atohl(name[ii])),
 				       ipaddr_t(ntohl(addr[ii])));
@@ -253,8 +254,8 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 	    if (dataSize >= 1 && atohs(data[0]) < 256) {
 		uint32_t addr;
 
-		sockaddr_in const* sa = getAddr(trunknode_t(9 + trunkIndex,
-							    atohs(data[0])));
+		sockaddr_in const* sa = getAddr(trunknode_t(trunk_t(9 + trunkIndex),
+							    node_t(size_t(atohs(data[0])))));
 		addr = sa ? sa->sin_addr.s_addr : 0;
 		sendLastReply(id, ACNET_SUCCESS, &addr, sizeof(addr));
 	    } else
@@ -262,9 +263,9 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 	} else {
 	    uint32_t addr[256];
 
-	    if (trunkExists(9 + trunkIndex)) {
-		for (int ii = 0; ii < 256; ii++) {
-		    sockaddr_in const* sa = getAddr(trunknode_t(9 + trunkIndex, ii));
+	    if (trunkExists(trunk_t(9 + trunkIndex))) {
+		for (size_t ii = 0; ii < 256; ii++) {
+		    sockaddr_in const* sa = getAddr(trunknode_t(trunk_t(9 + trunkIndex), node_t(ii)));
 
 		    addr[ii] = sa ? sa->sin_addr.s_addr : 0;
 		}
@@ -416,7 +417,7 @@ void AcnetTask::replyDetail(rpyid_t id, uint16_t const* const data, size_t dataL
 	    status = ACNET_TRP;
 	    break;
 	}
-	if (taskPool().rpyPool.fillReplyDetail(data[ii++], dl + total))
+	if (taskPool().rpyPool.fillReplyDetail(rpyid_t(data[ii++]), dl + total))
 	    ++total;
     }
     sendLastReply(id, status, dl, sizeof(*dl) * total);
@@ -434,7 +435,7 @@ void AcnetTask::requestDetail(rpyid_t id, uint16_t const* const data, size_t dat
 	    status = ACNET_TRP;
 	    break;
 	}
-	if (taskPool().reqPool.fillRequestDetail(data[ii++], dl + total))
+	if (taskPool().reqPool.fillRequestDetail(reqid_t(data[ii++]), dl + total))
 	    ++total;
     }
     sendLastReply(id, status, dl, sizeof(*dl) * total);
@@ -465,7 +466,7 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
     if (PKT_IS_REQUEST(flg) || PKT_IS_USM(flg)) {
 	uint16_t const* const msg = (uint16_t*) hdr->msg();
 	uint16_t const size = hdr->msgLen() - sizeof(AcnetHeader);
-	rpyid_t id = htoas(hdr->status().raw());
+	rpyid_t id = rpyid_t(htoas(hdr->status().raw()));
 
 	// The data size has to be a multiple of two (historically
 	// the diagnostics assume an array of 16-bit values) and
