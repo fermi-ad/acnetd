@@ -298,8 +298,8 @@ std::string rtos(nodename_t);
 #define	RPY_M_ENDMULT		(0x02)		// terminate multiple reply request
 #define	REQ_M_MULTRPY		(0x01)		// multiple reply request
 
-#define N_REQID			4096
-#define N_RPYID			4096
+#define N_REQID			2048
+#define N_RPYID			2048
 
 // ACNET protocol packet header
 
