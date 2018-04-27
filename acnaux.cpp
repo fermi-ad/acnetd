@@ -204,18 +204,18 @@ void AcnetTask::tasksStatsHandler(rpyid_t id, uint8_t subType)
     sendLastReply(id, ACNET_SUCCESS, rpy, taskPool().fillBufferWithTaskStats(subType, rpy));
 }
 
-void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* const data, uint16_t dataSize)
+void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* const data, size_t dataSize)
 {
     #define WRITE_FLG	(0x80)
     #define SINGLE_FLG	(0x40)
 
-    uint8_t trunkIndex = subType & 0x0F;
+    size_t trunkIndex = subType & 0x0F;
 
     if (subType & WRITE_FLG) {
 	if (dataSize >= 1) {
 	    if (subType & SINGLE_FLG) {
 	    } else {
-		uint16_t const numEntries = atohs(data[0]);
+		size_t const numEntries = atohs(data[0]);
 
 		if (trunkIndex == 0 && numEntries == 0) {
 		    setLastNodeTableDownloadTime();
@@ -238,7 +238,7 @@ void AcnetTask::ipNodeTableHandler(rpyid_t id, uint8_t subType, uint16_t const* 
 			// Handle the older apps that only send ip addresses
 
 			sendLastReply(id, ACNET_SUCCESS);
-			for (int ii = 0; ii < numEntries; ++ii)
+			for (size_t ii = 0; ii < numEntries; ++ii)
 			    updateAddr(trunknode_t((trunk_t) (trunkIndex + ACNET_MIN_TRUNK),
 						   (node_t) ii),
 				       nodename_t(), ipaddr_t(ntohl(addr[ii])));
@@ -388,7 +388,7 @@ void AcnetTask::debugHandler(rpyid_t id, uint8_t subType, uint16_t const* const 
     sendLastReply(id, status);
 }
 
-void AcnetTask::activeReplies(rpyid_t id, uint8_t subType, uint16_t const* const data, uint16_t dataLen)
+void AcnetTask::activeReplies(rpyid_t id, uint8_t subType, uint16_t const* const data, size_t dataLen)
 {
     AcnetRpyList rl;
 
@@ -396,7 +396,7 @@ void AcnetTask::activeReplies(rpyid_t id, uint8_t subType, uint16_t const* const
     sendLastReply(id, ACNET_SUCCESS, rl.ids, sizeof(*rl.ids) * rl.total);
 }
 
-void AcnetTask::activeRequests(rpyid_t id, uint8_t subType, uint16_t const* const data, uint16_t dataLen)
+void AcnetTask::activeRequests(rpyid_t id, uint8_t subType, uint16_t const* const data, size_t dataLen)
 {
     AcnetReqList rl;
 
@@ -404,7 +404,7 @@ void AcnetTask::activeRequests(rpyid_t id, uint8_t subType, uint16_t const* cons
     sendLastReply(id, ACNET_SUCCESS, rl.ids, sizeof(*rl.ids) * rl.total);
 }
 
-void AcnetTask::replyDetail(rpyid_t id, uint16_t const* const data, uint16_t dataLen)
+void AcnetTask::replyDetail(rpyid_t id, uint16_t const* const data, size_t dataLen)
 {
     rpyDetail dl[16];
     size_t ii = 0;
@@ -422,7 +422,7 @@ void AcnetTask::replyDetail(rpyid_t id, uint16_t const* const data, uint16_t dat
     sendLastReply(id, status, dl, sizeof(*dl) * total);
 }
 
-void AcnetTask::requestDetail(rpyid_t id, uint16_t const* const data, uint16_t dataLen)
+void AcnetTask::requestDetail(rpyid_t id, uint16_t const* const data, size_t dataLen)
 {
     reqDetail dl[16];
     size_t ii = 0;
@@ -475,7 +475,7 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 	if (!(size & 1) && size >= 2) {
 	    int8_t const type = (int8_t) atohs(msg[0]) & 0xff;
 	    uint8_t subType = atohs(msg[0]) >> 8;
-	    uint16_t dataLen = (size - 2) / 2;
+	    size_t dataLen = (size - 2) / 2;
 	    uint16_t const* const data = msg + 1;;
 
 	    switch (type) {
