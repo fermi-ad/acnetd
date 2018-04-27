@@ -62,7 +62,7 @@ void RequestPool::cancelReqToNode(trunknode_t const tn)
     while (0 != (req = idPool.next(req)))
 	if (req->remNode() == tn) {
 	    if (dumpOutgoing)
-		syslog(LOG_INFO, "sending faked EMR for request 0x%04x", req->id());
+		syslog(LOG_INFO, "sending faked EMR for request 0x%04x", req->id().raw());
 
 	    // Send a faked out EMR reply to the local client so that it can gracefully clean up its resources.
 
@@ -96,7 +96,7 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
 
     if (req) {
 	if (!req->task().removeRequest(id))
-	    syslog(LOG_WARNING, "didn't remove REQ ID 0x%04x from task %d", id, req->task().id().raw());
+	    syslog(LOG_WARNING, "didn't remove REQ ID 0x%04x from task %d", id.raw(), req->task().id().raw());
 
 	if (xmt) {
 
@@ -206,18 +206,18 @@ void RequestPool::fillActiveRequests(AcnetReqList& rl, uint8_t subType, uint16_t
     rl.total = 0;
     while (0 != (req = idPool.next(req)))
 	if (!n || reqInList(req, subType, data, n))
-	    rl.ids[rl.total++] = htoas(req->id());
+	    rl.ids[rl.total++] = htoas(req->id().raw());
 }
 
 bool RequestPool::fillRequestDetail(reqid_t id, reqDetail* const buf)
 {
-    ReqInfo const* const req = idPool.entry(atohs(id));
+    ReqInfo const* const req = idPool.entry(id);
 
 #ifdef DEBUG
     syslog(LOG_DEBUG, "request detail: looking up 0x%04x", atohs(id));
 #endif
     if (req) {
-	buf->id = atohs(id);
+	buf->id = htoas(id.raw());
 	buf->remNode = htoas(req->remNode().raw());
 	buf->remName = htoal(req->taskName().raw());
 	buf->lclName = htoal(req->task().handle().raw());
@@ -258,7 +258,7 @@ void RequestPool::generateReqReport(std::ostream& os)
 	    "\t\t\t<thead>\n"
 	    "\t\t\t\t<tr><td colspan=\"2\">Request 0x" << std::hex << std::setw(4) <<
 	    std::setfill('0') <<
-	    req->id() << (req->wantsMultReplies() ? " (MLT)" : "") << "</td></tr>\n"
+	    req->id().raw() << (req->wantsMultReplies() ? " (MLT)" : "") << "</td></tr>\n"
 	    "\t\t\t</thead>\n"
 	    "\t\t\t<tbody>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Owned by task</td><td>'"<<

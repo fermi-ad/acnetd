@@ -82,7 +82,7 @@ void generateKillerMessages()
 
 		if (data.name() != ILLEGAL_NODE &&
 		    data.addr()->sin_addr.s_addr == addr)
-		    sendKillerMessage(trunknode_t(trunk, node));
+		    sendKillerMessage(trunknode_t(trunk_t(trunk), node_t(node)));
 	    }
 }
 
@@ -96,7 +96,7 @@ bool addrLookup(ipaddr_t a, trunknode_t& tn)
 		IpInfo const* const record = ptr + node;
 
 		if (record->name() != ILLEGAL_NODE && htonl(a.value()) == record->addr()->sin_addr.s_addr) {
-		    tn = trunknode_t(trunk, node);
+		    tn = trunknode_t(trunk_t(trunk), node_t(node));
 		    return true;
 		}
 	    }
@@ -108,15 +108,15 @@ bool addrLookup(ipaddr_t a, trunknode_t& tn)
 
 static void eraseNode(trunknode_t tn)
 {
-    if (addrMap[tn.trunk()])
-	addrMap[tn.trunk()][tn.node()].update(ILLEGAL_NODE, ipaddr_t());
+    if (addrMap[tn.trunk().raw()])
+	addrMap[tn.trunk().raw()][tn.node()].update(ILLEGAL_NODE, ipaddr_t());
 }
 
 // Returns the IpInfo structure associated with the given trunk and node.
 
 IpInfo* findNodeInfo(trunknode_t tn)
 {
-    IpInfo* const ptr = addrMap[tn.trunk()];
+    IpInfo* const ptr = addrMap[tn.trunk().raw()];
 
     if (ptr) {
 	IpInfo* const data = ptr + tn.node();
@@ -272,7 +272,7 @@ bool nameLookup(nodename_t name, trunknode_t& tn)
 		IpInfo const* const record = ptr + node;
 
 		if (record->name() != ILLEGAL_NODE && record->matches(name)) {
-		    tn = trunknode_t(trunk, node);
+		    tn = trunknode_t(trunk_t(trunk), node_t(node));
 		    return true;
 		}
 	    }
@@ -313,7 +313,7 @@ bool nodeLookup(trunknode_t tn, nodename_t& name)
 
 static IpInfo* returnTrunk(trunk_t t)
 {
-    IpInfo*& location = addrMap[t];
+    IpInfo*& location = addrMap[t.raw()];
 
     if (!location)
 	location = new IpInfo[256];
@@ -379,7 +379,7 @@ void setPartialBuffer(trunknode_t tn, DataOut* ptr)
 
 bool trunkExists(trunk_t t)
 {
-    return addrMap[t];
+    return addrMap[t.raw()];
 }
 
 // Update trunk/node lookup to map (used for internal node table entries)
@@ -389,7 +389,7 @@ void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
     // Don't let an application add an entry for the LOCAL address.
 
     if (tn.isBlank()) {
-	syslog(LOG_WARNING, "an attempt was made to set invalid address 0x%02x%02x", tn.trunk(), tn.node());
+	syslog(LOG_WARNING, "an attempt was made to set invalid address 0x%02x%02x", tn.trunk().raw(), tn.node());
 	return;
     }
 
@@ -415,7 +415,7 @@ void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
 	if (newName == myHostName_) {
 	    if (!myNode_.isBlank() && myNode_ != tn)
 		syslog(LOG_WARNING, "trunk and node, for this machine, was changed from (0x%02x%02x) to (0x%02x%02x)",
-		       myNode_.trunk(), myNode_.node(), tn.trunk(), tn.node());
+		       myNode_.trunk().raw(), myNode_.node(), tn.trunk().raw(), tn.node());
 	    myNode_ = tn;
 	}
     } else if (newName == ILLEGAL_NODE)
@@ -450,7 +450,7 @@ bool validFromAddress(char const proto[], trunknode_t const ctn, ipaddr_t const 
     else {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping %s from %s == %s? -- client masquerading as 0x%02x%02x",
-		    proto, in.str().c_str(), ip.str().c_str(), ctn.trunk(), ctn.node());
+		    proto, in.str().c_str(), ip.str().c_str(), ctn.trunk().raw(), ctn.node());
 	return false;
     }
 }
@@ -461,7 +461,7 @@ bool validToAddress(char const proto[], trunknode_t const src, trunknode_t const
 	return true;
     else {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Dropping %s -- (from 0x%02x%02x) dst node 0x%02x%02x is not this machine)", proto, src.trunk(), src.node(), dst.trunk(), dst.node());
+	    syslog(LOG_WARNING, "Dropping %s -- (from 0x%02x%02x) dst node 0x%02x%02x is not this machine)", proto, src.trunk().raw(), src.node(), dst.trunk().raw(), dst.node());
 	return false;
     }
 }

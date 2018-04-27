@@ -100,7 +100,7 @@ void TaskInfo::report(std::ostream& os) const
 	for (auto ii = requests.begin(); ii != requests.end(); ++ii) {
 	    if (ii != requests.begin())
 		os << ", ";
-	    os << "0x" << std::setw(4) << std::setfill('0') << *ii;
+	    os << "0x" << std::setw(4) << std::setfill('0') << (*ii).raw();
 	}
 
 	os << "</tt></td></tr>\n"
@@ -117,7 +117,7 @@ void TaskInfo::report(std::ostream& os) const
 	for (auto ii = replies.begin(); ii != replies.end(); ++ii) {
 	    if (ii != replies.begin())
 		os << ", ";
-	    os << "0x" << std::setw(4) << std::setfill('0') << *ii;
+	    os << "0x" << std::setw(4) << std::setfill('0') << (*ii).raw();
 	}
 
 	os << "</tt></td></tr>\n"

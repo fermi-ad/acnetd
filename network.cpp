@@ -311,7 +311,7 @@ void dumpPacket(const char* pktType, AcnetHeader const& hdr, void const* d,
 	   txt[(flags & ACNET_FLG_TYPE) >> 1], hdr.status().raw(),
 	   hdr.server().raw(), hdr.client().raw(),
 	   hdr.svrTaskName().str(), hdr.svrTaskName().raw(),
-	   hdr.clntTaskId().raw(), hdr.msgId(), (int) msgLen,
+	   hdr.clntTaskId().raw(), hdr.msgId().raw(), (int) msgLen,
 	   dumpBuffer(d, msgLen - sizeof(AcnetHeader)));
 }
 
@@ -379,8 +379,8 @@ bool sendPendingPackets()
 	    AcnetHeader const* const hdr = reinterpret_cast<AcnetHeader const*>(ptr->getPacketData());
 
 	    syslog(LOG_WARNING, "couldn't look up node 0x%02x%02x for sending packet -- discarding (Info => svr: 0x%04x, "
-		   "cln: 0x%04x, tsk: 0x%08x, msgId: 0x%04x)", target.trunk(), target.node(), hdr->server().raw(),
-		   hdr->client().raw(), hdr->svrTaskName().raw(), hdr->msgId());
+		   "cln: 0x%04x, tsk: 0x%08x, msgId: 0x%04x)", target.trunk().raw(), target.node(), hdr->server().raw(),
+		   hdr->client().raw(), hdr->svrTaskName().raw(), hdr->msgId().raw());
 	}
 
 	// If this packet is associated with a target as being partially filled, we disassociate it. Not enough outgoing
@@ -418,12 +418,12 @@ void sendUsmToNetwork(trunknode_t tgtNode, taskhandle_t tgtTask, nodename_t from
     nameLookup(fromNodeName, fromNode);
 
     if (getAddr(tgtNode) != 0) {
-	AcnetHeader const ah(ACNET_FLG_USM, ACNET_SUCCESS, tgtNode, fromNode, tgtTask, client, 0, MSG_LENGTH(len) + sizeof(AcnetHeader));
+	AcnetHeader const ah(ACNET_FLG_USM, ACNET_SUCCESS, tgtNode, fromNode, tgtTask, client, reqid_t(), MSG_LENGTH(len) + sizeof(AcnetHeader));
 
 	(void) sendDataToNetwork(ah, data, len);
     } else if (dumpOutgoing)
 	syslog(LOG_WARNING, "IP table has no entry for node 0x%02x%02x -- cancelling USM transmission",
-	       tgtNode.trunk(), tgtNode.node());
+	       tgtNode.trunk().raw(), tgtNode.node());
 }
 
 // Local Variables:
