@@ -1242,7 +1242,7 @@ class AcnetTask : public InternalTask {
     // Various typecode handlers
 
     void versionHandler(rpyid_t);
-    void activeReplies(rpyid_t, uint8_t, uint16_t const* const, uint16_t);
+    void activeReplies(rpyid_t, uint8_t, uint16_t const* const, size_t);
     void packetCountHandler(rpyid_t);
     void taskIdHandler(rpyid_t, uint16_t const* const, uint16_t);
     void taskNameHandler(rpyid_t, uint8_t);
@@ -1254,12 +1254,12 @@ class AcnetTask : public InternalTask {
     void resetStats();
     void nodeStatsHandler(rpyid_t, uint8_t);
     void tasksStatsHandler(rpyid_t, uint8_t);
-    void ipNodeTableHandler(rpyid_t, uint8_t, const uint16_t*, uint16_t);
+    void ipNodeTableHandler(rpyid_t, uint8_t, const uint16_t*, size_t);
     void timeHandler(rpyid_t, uint8_t);
     void debugHandler(rpyid_t, uint8_t, const uint16_t*, uint16_t);
-    void activeRequests(rpyid_t, uint8_t, const uint16_t*, uint16_t);
-    void replyDetail(rpyid_t, const uint16_t*, uint16_t);
-    void requestDetail(rpyid_t, const uint16_t*, uint16_t);
+    void activeRequests(rpyid_t, uint8_t, const uint16_t*, size_t);
+    void replyDetail(rpyid_t, const uint16_t*, size_t);
+    void requestDetail(rpyid_t, const uint16_t*, size_t);
     void requestReport(rpyid_t);
 
  public:

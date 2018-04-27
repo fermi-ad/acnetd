@@ -4,7 +4,7 @@
 #include <inttypes.h>
 
 class trunknode_t {
-    uint16_t tn;
+    size_t tn;
 
  public:
     trunknode_t() : tn(0) {}
