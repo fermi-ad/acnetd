@@ -5,6 +5,8 @@
 #endif
 #include "server.h"
 
+Node ReplyRoot;
+
 rpyid_t RpyInfo::id() const
 {
     return task().taskPool().rpyPool.idPool.id(this);
@@ -59,9 +61,7 @@ bool RpyInfo::xmitReply(status_t status, void const* const data,
 
 RpyInfo* ReplyPool::getOldest()
 {
-    Node* const tmp = root.next();
-
-    return tmp != &root ? dynamic_cast<RpyInfo*>(tmp) : 0;
+    return dynamic_cast<RpyInfo*>(RpyInfo::first());
 }
 
 status_t ReplyPool::sendReplyToNetwork(TaskInfo const* const task,

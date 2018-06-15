@@ -956,9 +956,11 @@ struct AcnetRpyList {
 
 class RequestPool;
 
+extern Node RequestRoot;
+
 // This class encompasses all the information related to request ids.
 
-class ReqInfo : public TimeSensitive {
+class ReqInfo : public TimeSensitive<RequestRoot> {
  friend class IdPool<ReqInfo, reqid_t, N_REQID>;
  friend class RequestPool;
 
@@ -994,7 +996,6 @@ class RequestPool {
 
  private:
     IdPool<ReqInfo, reqid_t, N_REQID> idPool;
-    Node root;
     void release(ReqInfo *);
 
  public:
@@ -1008,7 +1009,7 @@ class RequestPool {
     ReqInfo *entry(reqid_t const id) 			{ return idPool.entry(id); }
 
     ReqInfo *oldest();
-    void update(ReqInfo* req) 				{ req->update(&root); }
+    void update(ReqInfo* req) 				{ req->update(); }
 
     void fillActiveRequests(AcnetReqList&l, uint8_t, uint16_t const*, uint16_t);
     bool fillRequestDetail(reqid_t, reqDetail* const);
@@ -1027,9 +1028,11 @@ struct rpyDetail {
 
 class ReplyPool;
 
+extern Node ReplyRoot;
+
 // This class encompasses all the information related to reply ids.
 
-class RpyInfo : public TimeSensitive {
+class RpyInfo : public TimeSensitive<ReplyRoot> {
  friend class IdPool<RpyInfo, rpyid_t, N_RPYID>;
  friend class ReplyPool;
 
@@ -1116,7 +1119,6 @@ class ReplyPool {
     typedef std::pair<ActiveMap::iterator, ActiveMap::iterator> ActiveRangeIterator;
 
     IdPool<RpyInfo, rpyid_t, N_REQID> idPool;
-    Node root;
 
     ActiveMap activeMap;
 
@@ -1147,7 +1149,7 @@ class ReplyPool {
     int sendReplyPendsAndGetNextTimeout();
 
     RpyInfo *getOldest();
-    void update(RpyInfo* rpy) 		{ rpy->update(&root); }
+    void update(RpyInfo* rpy) 		{ rpy->update(); }
 
     void fillActiveReplies(AcnetRpyList&, uint8_t, uint16_t const*, uint16_t);
     bool fillReplyDetail(rpyid_t, rpyDetail* const);

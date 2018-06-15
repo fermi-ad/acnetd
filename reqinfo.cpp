@@ -4,6 +4,8 @@
 #endif
 #include "server.h"
 
+Node RequestRoot;
+
 ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
 			    trunknode_t lclNode, trunknode_t remNode,
 			    uint16_t flags, uint32_t tmo)
@@ -50,9 +52,7 @@ reqid_t ReqInfo::id() const
 
 ReqInfo* RequestPool::oldest()
 {
-    Node* const tmp = root.next();
-
-    return tmp != &root ? dynamic_cast<ReqInfo*>(tmp) : 0;
+    return dynamic_cast<ReqInfo*>(ReqInfo::first());
 }
 
 void RequestPool::cancelReqToNode(trunknode_t const tn)
@@ -159,7 +159,7 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	    if (!mult)
 		cancelReqId(req->id(), true);
 	    else
-		req->update(&root);
+		req->update();
 
 	    if (failed)
 		task.taskPool().removeTask(&task);
