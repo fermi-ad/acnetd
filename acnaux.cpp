@@ -21,7 +21,7 @@ AcnetTask::AcnetTask(TaskPool& taskPool, taskid_t id) :
 void AcnetTask::versionHandler(rpyid_t id)
 {
     static uint16_t const rpy[] =
-	{ htoas(0x0914), htoas(0x0804), htoas(0x0900) };
+	{ htoas(0x0915), htoas(0x0100), htoas(0x0900) };
 
     sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
 }
