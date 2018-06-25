@@ -233,16 +233,10 @@ static void sendStr(int s, const char *d)
 
 static void sendAcceptKey(int sTcp, const char *key)
 {
-    static char encodingTable[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-				    'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-				    'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-				    'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-				    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-				    'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-				    'w', 'x', 'y', 'z', '0', '1', '2', '3',
-				    '4', '5', '6', '7', '8', '9', '+', '/'};
-    static int modTable[] = {0, 2, 1};
-    const char *magicKey = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    static char const encodingTable[] =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    static int const modTable[] = {0, 2, 1};
+    static char const magicKey[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     SHA_CTX ctx;
     unsigned char md[SHA_DIGEST_LENGTH];
 
