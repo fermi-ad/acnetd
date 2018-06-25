@@ -53,12 +53,16 @@ void TimeSensitive::update(Node* const root)
     lastUpdate = now();
 
     timeval const ourExp = expiration();
-    Node* current = root;
+    Node* current = root->prev();
 
-    while ((current = current->prev()) != root)
-	if (dynamic_cast<TimeSensitive const*>(current)->expiration() <= ourExp) {
-	    current = current->next();
+    while (current != root) {
+	if (dynamic_cast<TimeSensitive const*>(current)->expiration() <= ourExp)
 	    break;
-	}
+
+	current = current->prev();
+    }
+
+    current = current->next();
+
     insertBefore(current);
 }
