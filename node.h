@@ -15,7 +15,6 @@ class Node {
     Node* next() const { return next_; }
     Node* prev() const { return prev_; }
     void detach();
-    virtual void update(Node*);
 };
 
 // Local Variables:
