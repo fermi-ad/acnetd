@@ -135,7 +135,7 @@ void generateIpReport(std::ostream& os)
     os << "\t\t<div class=\"section\">\n"
 	"\t\t<h1>IP Table Report</h1>\n" << std::setw(0) << std::hex << std::setfill(' ');
 
-    time_t t = lastNodeTableDownloadTime() / 1000;
+    time_t t = (time_t) (lastNodeTableDownloadTime() / 1000);
     if (t)
 	os << "\t\t<p>Last node table download: " << ctime(&t) << "<p>";
     else
@@ -190,7 +190,7 @@ ipaddr_t getIpAddr(char const host[])
     return he ? ipaddr_t(ntohl(*(uint32_t*) he->h_addr_list[0])) : ipaddr_t();
 }
 
-time_t lastNodeTableDownloadTime()
+int64_t lastNodeTableDownloadTime()
 {
     return lastNodeTableDownloadTime_;
 }

@@ -280,8 +280,8 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 {
     if (subType == 1) {
 	uint16_t rpy[8];
-	time_t tt = (time_t) now() / 1000;
-	struct tm* t = localtime(&tt);
+	time_t const tt = (time_t) (now() / 1000);
+	struct tm* const t = localtime(&tt);
 
 	rpy[0] = htoas(t->tm_year);
 	rpy[1] = htoas(t->tm_mon + 1);
@@ -444,7 +444,7 @@ void AcnetTask::requestDetail(rpyid_t id, uint16_t const* const data, size_t dat
 void AcnetTask::requestReport(rpyid_t id)
 {
 #ifndef NO_REPORT
-    static time_t lastReport = 0;
+    static int64_t lastReport = 0;
 
     if (now() - lastReport > 60000) {
 	lastReport = now();
