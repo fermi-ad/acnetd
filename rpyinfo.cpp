@@ -292,19 +292,19 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
     }
 }
 
-int ReplyPool::sendReplyPendsAndGetNextTimeout()
+DeltaTime ReplyPool::sendReplyPendsAndGetNextTimeout()
 {
     RpyInfo* rpy;
 
     while (0 != (rpy = getOldest())) {
-	int64_t const expiration = rpy->expiration();
+	AbsTime const expiration = rpy->expiration();
 
 	if (expiration <= now())
 	    rpy->xmitReply(ACNET_PEND, 0, 0, false);
 	else
 	    return expiration - now();
     }
-    return -1;
+    return DeltaTime::infinity;
 }
 
 static bool rpyInList(RpyInfo const* const rpy, uint8_t subType,
@@ -416,11 +416,11 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    (uint32_t) rpy->taskId().raw() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
 	    "), request ID 0x" << std::setw(4) << rpy->reqId().raw() << "</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
-	printElapsedTime(os, now() - rpy->initTime());
+	printElapsedTime(os, (now() - rpy->initTime()).get_msec());
 	os << " ago.</td></tr>\n";
 	if (rpy->lastUpdate != 0) {
 	    os << "<tr class=\"even\"><td class=\"label\">Last reply sent</td><td>";
-	    printElapsedTime(os, now() - rpy->lastUpdate);
+	    printElapsedTime(os, (now() - rpy->lastUpdate).get_msec());
 	    os << " ago.</td></tr>\n"
 		"\t\t\t\t<tr><td class=\"label\">Sent</td><td>" << (uint32_t) rpy->totalPackets << " replies.</td></tr>\n";
 	}

@@ -16,7 +16,7 @@ TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h, taskid_t id) :
 {
 }
 
-int64_t TaskInfo::connectedTime() const
+DeltaTime TaskInfo::connectedTime() const
 {
     return now() - boot;
 }
@@ -80,7 +80,7 @@ void TaskInfo::report(std::ostream& os) const
 	"\t\t\t<tr class=\"even\"><td class=\"label\">Dropped Packets</td><td>" << (uint32_t) stats.lostPkt << "</td></tr>\n" <<
 	"\t\t\t<tr><td class=\"label\">Connected</td><td>";
 
-    printElapsedTime(os, now() - boot);
+    printElapsedTime(os, (now() - boot).get_msec());
 
     os << "</td></tr>\n";
 

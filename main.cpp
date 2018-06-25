@@ -22,20 +22,20 @@
 
 // Local prototypes...
 
-static int errorConditions();
+static DeltaTime errorConditions();
 static ipaddr_t ipAddress(trunknode_t&, ipaddr_t, bool);
 static bool getResources();
 static bool isPacketSizeValid(size_t, uint16_t, size_t, ipaddr_t);
-static int normalConditions();
+static DeltaTime normalConditions();
 static void releaseResources();
 static void sigHup(int);
 static void sigInt(int);
-static int waitingForNodeTable();
+static DeltaTime waitingForNodeTable();
 
 // Global data...
 
 bool dumpIncoming = false;
-int64_t statTimeBase = now();
+AbsTime statTimeBase = now();
 int sClient = -1;
 uint16_t acnetPort = ACNET_PORT;
 TaskPoolMap taskPoolMap;
@@ -52,8 +52,8 @@ static bool sendReport = false;
 #endif
 bool termSignal = false;
 static bool termApp = false;
-static int (*nodeTableConstraints)() = waitingForNodeTable;
-static int64_t currTime = 0;
+static DeltaTime (*nodeTableConstraints)() = waitingForNodeTable;
+static AbsTime currTime;
 
 struct CmdLineArgs {
     trunknode_t myNode;
@@ -265,10 +265,10 @@ static void getCurrentTime()
     struct timeval now;
 
     gettimeofday(&now, 0);
-    currTime = now.tv_sec * 1000LL + now.tv_usec / 1000LL;
+    currTime = AbsTime(now.tv_sec * 1000LL + now.tv_usec / 1000LL);
 }
 
-int64_t now()
+AbsTime now()
 {
     if (!currTime)
 	getCurrentTime();
@@ -613,7 +613,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 	// is still alive.  We throttle it because the call is too expensive
 	// to do on every reply with pid-based contexts.
 
-	if (req->task().stillAlive(5000)) {
+	if (req->task().stillAlive(DeltaTime(5000))) {
 
 	    // Update some bookkeeping; increment packet counters and reset the
 	    // time-out.
@@ -1145,19 +1145,19 @@ static void sigInt(int)
     termSignal = true;
 }
 
-// When running under normal conditions, we return a delay of -1, which means
-// we don't need poll() to timeout.
+// When running under normal conditions, we return an infinite delay, which
+// means we don't want poll() to timeout.
 
-static int normalConditions()
+static DeltaTime normalConditions()
 {
-    return -1;
+    return DeltaTime::infinity;
 }
 
-// In an error condition, we simply return 0 so we can quickly exit.
+// In an error condition, we simply return no delay so we can quickly exit.
 
-static int errorConditions()
+static DeltaTime errorConditions()
 {
-    return 0;
+    return DeltaTime::noDelay;
 }
 
 #if defined(NO_DAEMON)
@@ -1188,28 +1188,25 @@ static int ourDaemon(int, int)
 // When waiting for node tables, we need to return a timeout that wakes us
 // every 10 seconds.
 
-static int waitingForNodeTable()
+static DeltaTime waitingForNodeTable()
 {
-    static int64_t lastNodeTableDownloadRequestTime = now() - 10000;
-
     // Request node table download if still needed
 
     if (!lastNodeTableDownloadTime()) {
-	int const delta = now() - lastNodeTableDownloadRequestTime;
+	static const DeltaTime tenSec(10000);
+	static AbsTime lastNodeTableDownloadRequestTime =
+	    now() + DeltaTime(-10000);
 
-	if (delta >= 10000) {
-	    static bool sent = false;
+	DeltaTime const delta = now() - lastNodeTableDownloadRequestTime;
 
-	    if (!sent) {
-		syslog(LOG_INFO, "Requesting node table download");
-		sent = true;
-	    }
+	if (delta >= tenSec) {
+	    syslog(LOG_INFO, "Requesting node table download");
 	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t(ator("NODES")),
 			     nodename_t(), AcnetTaskId, 0, 0);
-	    lastNodeTableDownloadRequestTime += 10;
-	    return 10000;
+	    lastNodeTableDownloadRequestTime += tenSec;
+	    return tenSec;
 	} else
-	    return (10000 - delta);
+	    return tenSec - delta;
     } else if (!ourDaemon(1, 0)) {
 	syslog(LOG_INFO, "Received node table"
 #ifndef NO_DAEMON
@@ -1222,7 +1219,7 @@ static int waitingForNodeTable()
 	if (pidfile("acnetd"))
 	    syslog(LOG_WARNING, "couldn't create PID file -- %m");
 #endif
-	return -1;
+	return DeltaTime::infinity;
     } else {
 	static char const errMsg[] = "Couldn't run in the background! Terminating...";
 
@@ -1230,14 +1227,8 @@ static int waitingForNodeTable()
 	fprintf(stderr, "%s\n", errMsg);
 	nodeTableConstraints = errorConditions;
 	termSignal = true;
-	return 0;
+	return DeltaTime::noDelay;
     }
-}
-
-static void updateTimeout(int& pTmo, int const tmo)
-{
-    if (tmo != -1 && (pTmo == -1 || tmo < pTmo))
-	pTmo = tmo;
 }
 
 #ifndef NO_REPORT
@@ -1355,7 +1346,7 @@ int main(int argc, char** argv)
 		// Determine the default poll timeout (based upon whether we
 		// have any pending node table constraints.)
 
-		int pollTimeout = nodeTableConstraints();
+		DeltaTime pollTimeout = nodeTableConstraints();
 
 		// Send ACNET_PENDING status for all active replies that
 		// haven't generated data for a while. Return the number of
@@ -1366,9 +1357,9 @@ int main(int argc, char** argv)
 		while (ii != taskPoolMap.end()) {
 		    TaskPool* taskPool = (*ii++).second;
 
-		    updateTimeout(pollTimeout, taskPool->reqPool.sendRequestTimeoutsAndGetNextTimeout());
+		    std::min(pollTimeout, taskPool->reqPool.sendRequestTimeoutsAndGetNextTimeout());
 #ifdef KEEP_ALIVE
-		    updateTimeout(pollTimeout, taskPool->rpyPool.sendReplyPendsAndGetNextTimeout());
+		    std::min(pollTimeout, taskPool->rpyPool.sendReplyPendsAndGetNextTimeout());
 #endif
 		}
 
@@ -1381,7 +1372,7 @@ int main(int argc, char** argv)
 		// in the network buffers.
 
 		if (!sendPendingPackets())
-		    pollTimeout = 20;
+		    pollTimeout = DeltaTime(20);
 
 		// If we reached this test, then there are no outbound
 		// network packets to be sent. If we need to terminate the
@@ -1390,7 +1381,7 @@ int main(int argc, char** argv)
 		else if (termApp)
 		    break;
 
-		poll(pfd, sizeof(pfd) / sizeof(*pfd), pollTimeout);
+		poll(pfd, sizeof(pfd) / sizeof(*pfd), pollTimeout.get_msec());
 
 		getCurrentTime();
 

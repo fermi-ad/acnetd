@@ -8,7 +8,7 @@ Node RequestRoot;
 
 ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
 			    trunknode_t lclNode, trunknode_t remNode,
-			    uint16_t flags, uint32_t tmo)
+			    uint16_t flags, DeltaTime tmo)
 {
     assert(task);
 
@@ -19,7 +19,8 @@ ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
     req->lclNode_ = lclNode;
     req->remNode_ = remNode;
     req->flags = flags;
-    req->tmoMs = std::min(std::max(tmo, 400u), REQUEST_TIMEOUT * 1000u);
+    req->tmoMs = std::min(std::max(tmo, DeltaTime(400u)),
+			  DeltaTime(REQUEST_TIMEOUT * 1000u));
     req->initTime_ = now();
     req->totalPackets.reset();
 
@@ -133,12 +134,12 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
     return false;
 }
 
-int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
+DeltaTime RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 {
     ReqInfo* req;
 
     while (0 != (req = oldest())) {
-	int64_t const expiration = req->expiration();
+	AbsTime const expiration = req->expiration();
 
 	if (expiration <= now()) {
 	    const bool mult = req->wantsMultReplies();
@@ -166,7 +167,7 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	} else
 	    return expiration - now();
     }
-    return -1;
+    return DeltaTime::infinity;
 }
 
 static bool reqInList(ReqInfo const* const req, uint8_t subType, uint16_t const* data, uint16_t n)
@@ -229,8 +230,8 @@ bool RequestPool::fillRequestDetail(reqid_t id, reqDetail* const buf)
 	buf->remNode = htoas(req->remNode().raw());
 	buf->remName = htoal(req->taskName().raw());
 	buf->lclName = htoal(req->task().handle().raw());
-	buf->initTime = htoal(req->initTime() / 1000);
-	buf->lastUpdate = htoal(req->lastUpdate / 1000);
+	buf->initTime = htoal(req->initTime().get_sec());
+	buf->lastUpdate = htoal(req->lastUpdate.get_sec());
 	return true;
     } else
 	return false;
@@ -277,13 +278,13 @@ void RequestPool::generateReqReport(std::ostream& os)
 	    ")</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 
-	printElapsedTime(os, now() - req->initTime());
+	printElapsedTime(os, (now() - req->initTime()).get_msec());
 
 	os << " ago.</td></tr>\n";
 
-	if (req->lastUpdate != 0) {
+	if (req->lastUpdate) {
 	    os << "\t\t\t\t<tr class=\"even\"><td class=\"label\">Last reply received</td><td>";
-	    printElapsedTime(os, now() - req->lastUpdate);
+	    printElapsedTime(os, (now() - req->lastUpdate).get_msec());
 	    os << " ago.</td></tr>\n"
 		"<tr><td class=\"label\">Received</td><td>" << (uint32_t) req->totalPackets << " replies.</td></tr>\n";
 	}

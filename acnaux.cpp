@@ -2,7 +2,7 @@
 #include <cstring>
 #include "server.h"
 
-static int64_t bootTime = now();
+static AbsTime bootTime = now();
 
 void sendKillerMessage(trunknode_t const addr)
 {
@@ -43,14 +43,6 @@ void AcnetTask::packetCountHandler(rpyid_t id)
     sum += taskPool().stats.rpyRcv;
 
     rpy.pktCount = htoal(sum);
-
-    // If the current time is less than the boot time, then the system
-    // administrator has adjusted the system time and we've lost all
-    // information of when we started. If this happens, just set the
-    // boot time to the current time.
-
-    if (now() < bootTime)
-	bootTime = now();
 
     toTime48(now() - bootTime, &rpy.time);
     sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
@@ -280,7 +272,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 {
     if (subType == 1) {
 	uint16_t rpy[8];
-	time_t const tt = (time_t) (now() / 1000);
+	time_t const tt = (time_t) now().get_sec();
 	struct tm* const t = localtime(&tt);
 
 	rpy[0] = htoas(t->tm_year);
@@ -289,7 +281,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 	rpy[3] = htoas(t->tm_hour);
 	rpy[4] = htoas(t->tm_min);
 	rpy[5] = htoas(t->tm_sec);
-	rpy[6] = htoas(now() / 100);
+	rpy[6] = htoas(now().get_sec() * 10);
 	rpy[7] = htoas(100);
 
 	sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
@@ -444,9 +436,9 @@ void AcnetTask::requestDetail(rpyid_t id, uint16_t const* const data, size_t dat
 void AcnetTask::requestReport(rpyid_t id)
 {
 #ifndef NO_REPORT
-    static int64_t lastReport = 0;
+    static AbsTime lastReport;
 
-    if (now() - lastReport > 60000) {
+    if (DeltaTime(60000) < now() - lastReport) {
 	lastReport = now();
 	generateReport();
 	sendLastReply(id, ACNET_SUCCESS);

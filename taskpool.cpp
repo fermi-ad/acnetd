@@ -17,7 +17,8 @@
 
 const taskid_t AcnetTaskId(0);
 
-TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeName_(nodeName)
+TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) :
+    node_(node), nodeName_(nodeName)
 {
     taskStatTimeBase = now();
 

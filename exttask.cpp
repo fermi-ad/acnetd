@@ -98,7 +98,7 @@ bool ExternalTask::sendErrorToClient(status_t err)
     return sendAckToClient(&ack, sizeof(ack));
 }
 
-bool ExternalTask::stillAlive(int throttle) const
+bool ExternalTask::stillAlive(DeltaTime throttle) const
 {
     if ((now() - lastAliveCheckTime) >= throttle) {
 	lastAliveCheckTime = now();
@@ -109,7 +109,7 @@ bool ExternalTask::stillAlive(int throttle) const
 	    else if (0 != kill(pid(), 0) && errno == ESRCH)
 		return false;
 	} else
-	    return (now() - lastCommandTime) < 30000;
+	    return now() - lastCommandTime < DeltaTime(30000);
     }
 
     return true;
@@ -206,7 +206,7 @@ void ExternalTask::handleSendRequest(SendRequestCommand const *cmd, size_t const
 
 		// Try to allocate a new request ID. If we're successful, send the data to the remote machine.
 
-		ReqInfo* const req = reqPool.alloc(this, cmd->task(), taskPool().node(), node, cmd->flags(), REQUEST_TIMEOUT * 1000u);
+		ReqInfo* const req = reqPool.alloc(this, cmd->task(), taskPool().node(), node, cmd->flags(), DeltaTime(REQUEST_TIMEOUT * 1000u));
 		size_t const msgLen = len - sizeof(SendRequestCommand);
 		AcnetHeader const hdr(ACNET_FLG_REQ | ((cmd->flags() & REQ_M_MULTRPY) ? ACNET_FLG_MLT : 0), ACNET_SUCCESS,
 				      node, taskPool().node(), cmd->task(), id(), req->id(),
@@ -248,7 +248,7 @@ void ExternalTask::handleSendRequestWithTimeout(SendRequestWithTimeoutCommand co
 
 		// Try to allocate a new request ID. If we're successful, send the data to the remote machine.
 
-		ReqInfo* const req = reqPool.alloc(this, cmd->task(), taskPool().node(), node, cmd->flags(), cmd->timeout());
+		ReqInfo* const req = reqPool.alloc(this, cmd->task(), taskPool().node(), node, cmd->flags(), DeltaTime(cmd->timeout()));
 		size_t const msgLen = len - sizeof(SendRequestWithTimeoutCommand);
 		AcnetHeader const hdr(ACNET_FLG_REQ | ((cmd->flags() & REQ_M_MULTRPY) ? ACNET_FLG_MLT : 0), ACNET_SUCCESS,
 				      node, taskPool().node(), cmd->task(), id(), req->id(),
@@ -279,8 +279,9 @@ void ExternalTask::handleSendReply(SendReplyCommand const *cmd, size_t const len
     // message cannot be bigger than the max payload size plus the command header.)
 
     if (len >= sizeof(SendReplyCommand) && len <= INTERNAL_ACNET_USER_PACKET_SIZE + sizeof(SendReplyCommand)) {
-	status_t const tmp = taskPool().rpyPool.sendReplyToNetwork(this, cmd->rpyid(), cmd->status(), cmd->data(),
-								  len - sizeof(SendReplyCommand), cmd->flags() & RPY_M_ENDMULT);
+	status_t const tmp =
+	    taskPool().rpyPool.sendReplyToNetwork(this, cmd->rpyid(), cmd->status(), cmd->data(),
+						  len - sizeof(SendReplyCommand), cmd->flags() & RPY_M_ENDMULT);
 
 	ack.setStatus(tmp);
     } else

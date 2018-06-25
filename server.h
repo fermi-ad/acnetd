@@ -972,9 +972,9 @@ class ReqInfo : public TimeSensitive<RequestRoot> {
     trunknode_t lclNode_;
     trunknode_t remNode_;
     uint16_t flags;
-    uint32_t tmoMs;
+    DeltaTime tmoMs;
     bool mcast;
-    int64_t initTime_;
+    AbsTime initTime_;
 
 public:
     mutable StatCounter totalPackets;
@@ -984,11 +984,11 @@ public:
     void bumpPktStats() const		{ ++totalPackets; }
     bool wantsMultReplies() const	{ return flags & ACNET_FLG_MLT; }
     bool multicasted() const		{ return mcast; }
-    int64_t expiration() const		{ return lastUpdate + tmoMs; }
+    AbsTime expiration() const		{ return lastUpdate + tmoMs; }
     taskhandle_t taskName() const	{ return taskName_; }
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
-    int64_t initTime() const		{ return initTime_; }
+    AbsTime initTime() const		{ return initTime_; }
 };
 
 class RequestPool {
@@ -999,11 +999,12 @@ class RequestPool {
     void release(ReqInfo *);
 
  public:
-    ReqInfo *alloc(TaskInfo*, taskhandle_t, trunknode_t, trunknode_t, uint16_t, uint32_t);
+    ReqInfo *alloc(TaskInfo*, taskhandle_t, trunknode_t, trunknode_t, uint16_t,
+		   DeltaTime);
 
     bool cancelReqId(reqid_t, bool = true, bool = false);
     void cancelReqToNode(trunknode_t const);
-    int sendRequestTimeoutsAndGetNextTimeout();
+    DeltaTime sendRequestTimeoutsAndGetNextTimeout();
 
     ReqInfo *next(ReqInfo const * const req) const 	{ return idPool.next(req); }
     ReqInfo *entry(reqid_t const id) 			{ return idPool.entry(id); }
@@ -1047,7 +1048,7 @@ class RpyInfo : public TimeSensitive<ReplyRoot> {
     taskid_t taskId_;
     bool mcast;
     reqid_t reqId_;
-    int64_t initTime_;
+    AbsTime initTime_;
     bool acked;
 
  public:
@@ -1067,13 +1068,13 @@ class RpyInfo : public TimeSensitive<ReplyRoot> {
     bool beenAcked() const		{ return acked; }
     bool isMultReplier() const		{ return flags & ACNET_FLG_MLT; }
     bool multicasted() const		{ return mcast; }
-    int64_t expiration() const 		{ return lastUpdate + (REPLY_DELAY * 1000); }
+    AbsTime expiration() const 		{ return lastUpdate + DeltaTime(REPLY_DELAY * 1000); }
     taskhandle_t taskName() const	{ return taskName_; }
     taskid_t taskId() const		{ return taskId_; }
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
     reqid_t reqId() const		{ return reqId_; }
-    int64_t initTime() const		{ return initTime_; }
+    AbsTime initTime() const		{ return initTime_; }
 
     bool xmitReply(status_t, void const*, size_t, bool);
 };
@@ -1085,7 +1086,7 @@ class ReplyPool {
     typedef std::map<trunknode_t, unsigned> ActiveTargetMap;
 
     class Pinger {
-	int64_t expires;
+	AbsTime expires;
 	ActiveTargetMap const& map;
 	ActiveTargetMap::const_iterator current;
 
@@ -1146,7 +1147,7 @@ class ReplyPool {
     status_t sendReplyToNetwork(TaskInfo const*, rpyid_t, status_t, void const*, size_t, bool);
     void endRpyToNode(trunknode_t const);
     void endRpyId(rpyid_t, status_t = ACNET_SUCCESS);
-    int sendReplyPendsAndGetNextTimeout();
+    DeltaTime sendReplyPendsAndGetNextTimeout();
 
     RpyInfo *getOldest();
     void update(RpyInfo* rpy) 		{ rpy->update(); }
@@ -1177,7 +1178,7 @@ typedef std::set<rpyid_t> RpyList;
 // Information related to all connected  tasks.
 
 class TaskInfo : private Noncopyable {
-    const int64_t boot;
+    const AbsTime boot;
     TaskPool& taskPool_;
     taskhandle_t handle_;
     const taskid_t id_;
@@ -1205,13 +1206,13 @@ class TaskInfo : private Noncopyable {
 
     // Informational
 
-    int64_t connectedTime() const;
+    DeltaTime connectedTime() const;
     virtual pid_t pid() const = 0;
     virtual bool acceptsUsm() const = 0;
     virtual bool acceptsRequests() const = 0;
     virtual bool isPromiscuous() const  = 0;
     virtual bool needsToBeThrottled() const = 0;
-    virtual bool stillAlive(int = 0) const = 0;
+    virtual bool stillAlive(DeltaTime = DeltaTime(0)) const = 0;
     virtual bool equals(TaskInfo const* o) const = 0;
     TaskPool& taskPool() const	{ return taskPool_; }
     taskhandle_t handle() const	{ return handle_; }
@@ -1265,7 +1266,7 @@ class InternalTask : public TaskInfo {
     bool acceptsRequests() const { return true; }
     bool needsToBeThrottled() const { return false; }
     void commandReceived() const { }
-    bool stillAlive(int) const { return true; }
+    bool stillAlive(DeltaTime) const { return true; }
 
     bool equals(TaskInfo const*) const;
     bool isPromiscuous() const { return false; }
@@ -1343,7 +1344,7 @@ typedef std::vector<TaskInfo*> TaskList;
 // to become a host for multiple "virtual" acnetd nodes
 //
 class TaskPool : private Noncopyable {
-    int64_t taskStatTimeBase;
+    AbsTime taskStatTimeBase;
     trunknode_t node_;
     nodename_t nodeName_;
     TaskInfo *tasks_[MAX_TASKS];
@@ -1493,11 +1494,13 @@ inline ipaddr_t octetsToIp(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
     return ipaddr_t((a << 24) | (b << 16) | (c << 8) | d);
 }
 
-inline void toTime48(int64_t t, time48_t* t48)
+inline void toTime48(DeltaTime const t, time48_t* t48)
 {
-    t48->t[0] = htoas((uint16_t) t);
-    t48->t[1] = htoas((uint16_t) (t >> 16));
-    t48->t[2] = htoas((uint16_t) (t >> 32));
+    int64_t ms = t.get_msec();
+
+    t48->t[0] = htoas(uint16_t(ms));
+    t48->t[1] = htoas(uint16_t(ms >> 16));
+    t48->t[2] = htoas(uint16_t(ms >> 32));
 }
 
 // Prototypes...
@@ -1541,7 +1544,7 @@ bool isMulticastNode(trunknode_t);
 bool isLocal(trunknode_t, uint32_t = 0);
 bool isThisMachine(trunknode_t);
 uint32_t ipAddr(char const[]);
-int64_t lastNodeTableDownloadTime();
+AbsTime lastNodeTableDownloadTime();
 ipaddr_t myIp();
 trunknode_t myNode();
 nodename_t myHostName();
@@ -1575,7 +1578,7 @@ extern int sNetwork;
 extern int sClient;
 extern bool dumpIncoming;
 extern bool dumpOutgoing;
-extern int64_t statTimeBase;
+extern AbsTime statTimeBase;
 
 // Local Variables:
 // mode:c++
