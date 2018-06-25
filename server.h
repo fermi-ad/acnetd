@@ -1018,7 +1018,7 @@ class RpyInfo : public TimeSensitive {
     taskid_t taskId_;
     bool mcast;
     reqid_t reqId_;
-    time_t initTime_;
+    int64_t initTime_;
     bool acked;
 
  public:
@@ -1044,7 +1044,7 @@ class RpyInfo : public TimeSensitive {
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
     reqid_t reqId() const		{ return reqId_; }
-    time_t initTime() const		{ return initTime_; }
+    int64_t initTime() const		{ return initTime_; }
 
     bool xmitReply(status_t, void const*, size_t, bool);
 };
@@ -1149,7 +1149,7 @@ typedef std::set<rpyid_t> RpyList;
 // Information related to all connected  tasks.
 
 class TaskInfo : private Noncopyable {
-    const time_t boot;
+    const int64_t boot;
     TaskPool& taskPool_;
     taskhandle_t handle_;
     const taskid_t id_;
@@ -1177,7 +1177,7 @@ class TaskInfo : private Noncopyable {
 
     // Informational
 
-    time_t connectedTime() const;
+    int64_t connectedTime() const;
     virtual pid_t pid() const = 0;
     virtual bool acceptsUsm() const = 0;
     virtual bool acceptsRequests() const = 0;
@@ -1315,7 +1315,7 @@ typedef std::vector<TaskInfo*> TaskList;
 // to become a host for multiple "virtual" acnetd nodes
 //
 class TaskPool : private Noncopyable {
-    time_t taskStatTimeBase;
+    int64_t taskStatTimeBase;
     trunknode_t node_;
     nodename_t nodeName_;
     TaskInfo *tasks_[MAX_TASKS];
@@ -1501,7 +1501,7 @@ bool isMulticastNode(trunknode_t);
 bool isLocal(trunknode_t, uint32_t = 0);
 bool isThisMachine(trunknode_t);
 uint32_t ipAddr(char const[]);
-time_t lastNodeTableDownloadTime();
+int64_t lastNodeTableDownloadTime();
 ipaddr_t myIp();
 trunknode_t myNode();
 nodename_t myHostName();
@@ -1535,7 +1535,7 @@ extern int sNetwork;
 extern int sClient;
 extern bool dumpIncoming;
 extern bool dumpOutgoing;
-extern time_t statTimeBase;
+extern int64_t statTimeBase;
 
 // Local Variables:
 // mode:c++
