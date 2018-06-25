@@ -35,7 +35,7 @@ static int waitingForNodeTable();
 // Global data...
 
 bool dumpIncoming = false;
-time_t statTimeBase = time(0);
+int64_t statTimeBase = now();
 int sClient = -1;
 uint16_t acnetPort = ACNET_PORT;
 TaskPoolMap taskPoolMap;
@@ -53,7 +53,7 @@ static bool sendReport = false;
 bool termSignal = false;
 static bool termApp = false;
 static int (*nodeTableConstraints)() = waitingForNodeTable;
-static timeval currTime = { 0, 0 };
+static int64_t currTime = 0;
 
 struct CmdLineArgs {
     trunknode_t myNode;
@@ -260,10 +260,18 @@ void dumpIncomingAcnetPackets(bool const status)
     syslog(LOG_NOTICE, "Dumping incoming ACNET packets: %s", status ? "ON" : "OFF");
 }
 
-timeval const& now()
+static void getCurrentTime()
 {
-    if (!currTime.tv_sec)
-	gettimeofday(&currTime, 0);
+    struct timeval now;
+
+    gettimeofday(&now, 0);
+    currTime = now.tv_sec * 1000LL + now.tv_usec / 1000LL;
+}
+
+int64_t now()
+{
+    if (!currTime)
+	getCurrentTime();
     return currTime;
 }
 
@@ -605,7 +613,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 	// is still alive.  We throttle it because the call is too expensive
 	// to do on every reply with pid-based contexts.
 
-	if (req->task().stillAlive(5)) {
+	if (req->task().stillAlive(5000)) {
 
 	    // Update some bookkeeping; increment packet counters and reset the
 	    // time-out.
@@ -1083,8 +1091,10 @@ static bool isPacketSizeValid(size_t const packetOffset, uint16_t const packetSi
     return true;
 }
 
-void printElapsedTime(std::ostream& os, unsigned delta)
+void printElapsedTime(std::ostream& os, int64_t delta)
 {
+    delta /= 1000;
+
     if (delta > 60) {
 	if (delta > 3600) {
 	    if (delta > 86400)
@@ -1180,14 +1190,14 @@ static int ourDaemon(int, int)
 
 static int waitingForNodeTable()
 {
-    static time_t lastNodeTableDownloadRequestTime = now().tv_sec - 10;
+    static int64_t lastNodeTableDownloadRequestTime = now() - 10000;
 
     // Request node table download if still needed
 
     if (!lastNodeTableDownloadTime()) {
-	int const delta = now().tv_sec - lastNodeTableDownloadRequestTime;
+	int const delta = now() - lastNodeTableDownloadRequestTime;
 
-	if (delta >= 10) {
+	if (delta >= 10000) {
 	    static bool sent = false;
 
 	    if (!sent) {
@@ -1199,7 +1209,7 @@ static int waitingForNodeTable()
 	    lastNodeTableDownloadRequestTime += 10;
 	    return 10000;
 	} else
-	    return (10 - delta) * 1000;
+	    return (10 - delta);
     } else if (!ourDaemon(1, 0)) {
 	syslog(LOG_INFO, "Received node table"
 #ifndef NO_DAEMON
@@ -1313,7 +1323,7 @@ int main(int argc, char** argv)
 #endif
 	    };
 
-	    gettimeofday(&currTime, 0);
+	    getCurrentTime();
 	    if (cmdLineArgs.standAlone)
 		setLastNodeTableDownloadTime();
 
@@ -1382,7 +1392,7 @@ int main(int argc, char** argv)
 
 		poll(pfd, sizeof(pfd) / sizeof(*pfd), pollTimeout);
 
-		gettimeofday(&currTime, 0);
+		getCurrentTime();
 
 		while ((pfd[0].revents | pfd[1].revents
 #ifdef TCP_CLIENTS

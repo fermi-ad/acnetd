@@ -60,7 +60,7 @@ static IpInfo* addrMap[256] = { 0 };
 static trunknode_t myNode_;
 static ipaddr_t myIp_;
 static nodename_t myHostName_;
-static time_t lastNodeTableDownloadTime_ = 0;
+static int64_t lastNodeTableDownloadTime_ = 0;
 
 std::ostream& operator<<(std::ostream& os, ipaddr_t v)
 {
@@ -135,7 +135,7 @@ void generateIpReport(std::ostream& os)
     os << "\t\t<div class=\"section\">\n"
 	"\t\t<h1>IP Table Report</h1>\n" << std::setw(0) << std::hex << std::setfill(' ');
 
-    time_t t = lastNodeTableDownloadTime();
+    time_t t = lastNodeTableDownloadTime() / 1000;
     if (t)
 	os << "\t\t<p>Last node table download: " << ctime(&t) << "<p>";
     else
@@ -322,7 +322,7 @@ static IpInfo* returnTrunk(trunk_t t)
 
 void setLastNodeTableDownloadTime()
 {
-    lastNodeTableDownloadTime_ = now().tv_sec;
+    lastNodeTableDownloadTime_ = now();
 }
 
 // This function is called when acnetd starts up. It does a DNS lookup of its own name to get its IP address. This way, when

@@ -11,14 +11,14 @@
 // to the free list.
 
 TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h, taskid_t id) :
-    boot(now().tv_sec), taskPool_(taskPool), handle_(h), id_(id),
+    boot(now()), taskPool_(taskPool), handle_(h), id_(id),
     pendingRequests(0), maxPendingRequests(0)
 {
 }
 
-time_t TaskInfo::connectedTime() const
+int64_t TaskInfo::connectedTime() const
 {
-    return now().tv_sec - boot;
+    return now() - boot;
 }
 
 #ifndef DEBUG
@@ -80,7 +80,7 @@ void TaskInfo::report(std::ostream& os) const
 	"\t\t\t<tr class=\"even\"><td class=\"label\">Dropped Packets</td><td>" << (uint32_t) stats.lostPkt << "</td></tr>\n" <<
 	"\t\t\t<tr><td class=\"label\">Connected</td><td>";
 
-    printElapsedTime(os, now().tv_sec - boot);
+    printElapsedTime(os, now() - boot);
 
     os << "</td></tr>\n";
 

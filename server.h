@@ -946,7 +946,7 @@ class ReqInfo : public TimeSensitive {
     uint16_t flags;
     uint32_t tmoMs;
     bool mcast;
-    time_t initTime_;
+    int64_t initTime_;
 
 public:
     mutable StatCounter totalPackets;
@@ -956,11 +956,11 @@ public:
     void bumpPktStats() const		{ ++totalPackets; }
     bool wantsMultReplies() const	{ return flags & ACNET_FLG_MLT; }
     bool multicasted() const		{ return mcast; }
-    timeval expiration() const		{ return lastUpdate + tmoMs; }
+    int64_t expiration() const		{ return lastUpdate + tmoMs; }
     taskhandle_t taskName() const	{ return taskName_; }
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
-    time_t initTime() const		{ return initTime_; }
+    int64_t initTime() const		{ return initTime_; }
 };
 
 class RequestPool {
@@ -1038,7 +1038,7 @@ class RpyInfo : public TimeSensitive {
     bool beenAcked() const		{ return acked; }
     bool isMultReplier() const		{ return flags & ACNET_FLG_MLT; }
     bool multicasted() const		{ return mcast; }
-    timeval expiration() const 		{ return lastUpdate + REPLY_DELAY * 1000; }
+    int64_t expiration() const 		{ return lastUpdate + (REPLY_DELAY * 1000); }
     taskhandle_t taskName() const	{ return taskName_; }
     taskid_t taskId() const		{ return taskId_; }
     trunknode_t lclNode() const		{ return lclNode_; }
@@ -1056,7 +1056,7 @@ class ReplyPool {
     typedef std::map<trunknode_t, unsigned> ActiveTargetMap;
 
     class Pinger {
-	timeval expires;
+	int64_t expires;
 	ActiveTargetMap const& map;
 	ActiveTargetMap::const_iterator current;
 
@@ -1453,13 +1453,11 @@ inline ipaddr_t octetsToIp(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
     return ipaddr_t((a << 24) | (b << 16) | (c << 8) | d);
 }
 
-inline void secToMs(time_t t, time48_t* t48)
+inline void toTime48(int64_t t, time48_t* t48)
 {
-    long long tmp = (long long) t * 1000;
-
-    t48->t[0] = htoas((uint16_t) tmp);
-    t48->t[1] = htoas((uint16_t) (tmp >> 16));
-    t48->t[2] = htoas((uint16_t) (tmp >> 32));
+    t48->t[0] = htoas((uint16_t) t);
+    t48->t[1] = htoas((uint16_t) (t >> 16));
+    t48->t[2] = htoas((uint16_t) (t >> 32));
 }
 
 // Prototypes...
@@ -1470,7 +1468,7 @@ inline void secToMs(time_t t, time48_t* t48)
 void generateReport(TaskPool *);
 void generateIpReport(std::ostream&);
 void generateReport();
-void printElapsedTime(std::ostream&, unsigned);
+void printElapsedTime(std::ostream&, int64_t);
 #endif
 
 // Network interface
@@ -1526,7 +1524,6 @@ uint32_t countMulticastGroup(ipaddr_t);
 // Misc
 
 bool rejectTask(taskhandle_t const);
-uint32_t diffInMs(timeval const&, timeval const&);
 void cancelReqToNode(trunknode_t const);
 void endRpyToNode(trunknode_t const);
 
