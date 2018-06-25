@@ -373,9 +373,6 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 		continue;
 	    }
 
-	    timeval now;
-	    gettimeofday(&now, 0);
-
 	    if (pollStat > 0) {
 
 		// Check data socket from acnetd

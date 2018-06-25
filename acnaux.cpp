@@ -2,7 +2,7 @@
 #include <cstring>
 #include "server.h"
 
-static time_t bootTime = time(0);
+static int64_t bootTime = now();
 
 void sendKillerMessage(trunknode_t const addr)
 {
@@ -49,10 +49,10 @@ void AcnetTask::packetCountHandler(rpyid_t id)
     // information of when we started. If this happens, just set the
     // boot time to the current time.
 
-    if (now().tv_sec < bootTime)
-	bootTime = now().tv_sec;
+    if (now() < bootTime)
+	bootTime = now();
 
-    secToMs(now().tv_sec - bootTime, &rpy.time);
+    toTime48(now() - bootTime, &rpy.time);
     sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
 }
 
@@ -159,7 +159,7 @@ void AcnetTask::taskResourcesHandler(rpyid_t id)
 
 void AcnetTask::resetStats()
 {
-    statTimeBase = now().tv_sec;
+    statTimeBase = now();
     taskPool().stats.usmXmt.reset();
     taskPool().stats.reqXmt.reset();
     taskPool().stats.rpyXmt.reset();
@@ -175,10 +175,10 @@ void AcnetTask::nodeStatsHandler(rpyid_t id, uint8_t subType)
 	uint16_t count[10];
     } __attribute__((packed)) rpy;
 
-    if (now().tv_sec < statTimeBase)
+    if (now() < statTimeBase)
 	resetStats();
 
-    secToMs(now().tv_sec - statTimeBase, &rpy.time);
+    toTime48(now() - statTimeBase, &rpy.time);
 
     rpy.count[0] = htoas(0);
     rpy.count[1] = htoas(0);
@@ -280,7 +280,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 {
     if (subType == 1) {
 	uint16_t rpy[8];
-	time_t tt = (time_t) now().tv_sec;
+	time_t tt = (time_t) now() / 1000;
 	struct tm* t = localtime(&tt);
 
 	rpy[0] = htoas(t->tm_year);
@@ -289,7 +289,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 	rpy[3] = htoas(t->tm_hour);
 	rpy[4] = htoas(t->tm_min);
 	rpy[5] = htoas(t->tm_sec);
-	rpy[6] = htoas(now().tv_usec / 10000);
+	rpy[6] = htoas(now() / 100);
 	rpy[7] = htoas(100);
 
 	sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
@@ -446,8 +446,8 @@ void AcnetTask::requestReport(rpyid_t id)
 #ifndef NO_REPORT
     static time_t lastReport = 0;
 
-    if (now().tv_sec - lastReport > 60) {
-	lastReport = now().tv_sec;
+    if (now() - lastReport > 60000) {
+	lastReport = now();
 	generateReport();
 	sendLastReply(id, ACNET_SUCCESS);
     } else

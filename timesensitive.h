@@ -7,19 +7,17 @@
 
 // Prototypes of functions (operators) that related to time-keeping.
 
-timeval const& now();
-timeval operator+(timeval const&, unsigned);
-bool operator<=(timeval const&, timeval const&);
+int64_t now();
 
 // Classes that inherit from this class can be sorted in a "most
 // expired" order.
 
 struct TimeSensitive : public Node {
-    timeval lastUpdate;
+    int64_t lastUpdate;
 
     TimeSensitive();
     void update(Node*);
-    virtual timeval expiration() const = 0;
+    virtual int64_t expiration() const = 0;
 };
 
 // Local Variables:

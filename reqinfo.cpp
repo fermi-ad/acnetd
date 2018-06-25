@@ -18,7 +18,7 @@ ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
     req->remNode_ = remNode;
     req->flags = flags;
     req->tmoMs = std::min(std::max(tmo, 400u), REQUEST_TIMEOUT * 1000u);
-    req->initTime_ = now().tv_sec;
+    req->initTime_ = now();
     req->totalPackets.reset();
 
     {
@@ -138,7 +138,7 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
     ReqInfo* req;
 
     while (0 != (req = oldest())) {
-	timeval const expiration = req->expiration();
+	int64_t const expiration = req->expiration();
 
 	if (expiration <= now()) {
 	    AcnetHeader const hdr(ACNET_FLG_RPY, ACNET_TMO, req->remNode(), req->lclNode(),
@@ -156,7 +156,7 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	    if (failed)
 		task.taskPool().removeTask(&task);
 	} else
-	    return diffInMs(expiration, now());
+	    return expiration - now();
     }
     return -1;
 }
@@ -222,7 +222,7 @@ bool RequestPool::fillRequestDetail(reqid_t id, reqDetail* const buf)
 	buf->remName = htoal(req->taskName().raw());
 	buf->lclName = htoal(req->task().handle().raw());
 	buf->initTime = htoal(req->initTime());
-	buf->lastUpdate = htoal(req->lastUpdate.tv_sec);
+	buf->lastUpdate = htoal(req->lastUpdate / 1000);
 	return true;
     } else
 	return false;
@@ -233,7 +233,6 @@ void RequestPool::generateReqReport(std::ostream& os)
 {
     os << "\t\t<div class=\"section\">\n\t\t<h1>Request ID Report</h1>\n";
 
-    time_t const currTime = now().tv_sec;
     ReqInfo const* req = 0;
 
     os << "<br>Max active request IDs: " << idPool.maxActiveIdCount() << "<br>";
@@ -269,13 +268,13 @@ void RequestPool::generateReqReport(std::ostream& os)
 	    ")</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 
-	printElapsedTime(os, currTime - req->initTime());
+	printElapsedTime(os, now() - req->initTime());
 
 	os << " ago.</td></tr>\n";
 
-	if (req->lastUpdate.tv_sec != 0) {
+	if (req->lastUpdate != 0) {
 	    os << "\t\t\t\t<tr class=\"even\"><td class=\"label\">Last reply received</td><td>";
-	    printElapsedTime(os, currTime - req->lastUpdate.tv_sec);
+	    printElapsedTime(os, now() - req->lastUpdate);
 	    os << " ago.</td></tr>\n"
 		"<tr><td class=\"label\">Received</td><td>" << (uint32_t) req->totalPackets << " replies.</td></tr>\n";
 	}

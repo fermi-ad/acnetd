@@ -19,7 +19,7 @@ const taskid_t AcnetTaskId(0);
 
 TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeName_(nodeName)
 {
-    taskStatTimeBase = time(0);
+    taskStatTimeBase = now();
 
     for (int ii = 0; ii < MAX_TASKS; ii++)
 	tasks_[ii] = 0;
@@ -381,7 +381,7 @@ size_t TaskPool::fillBufferWithTaskStats(uint8_t subType, void* buf)
     TaskStatsReply* const rpy = (TaskStatsReply*) buf;
     size_t const count = activeCount();
 
-    secToMs(now().tv_sec - taskStatTimeBase, &rpy->statsTime);
+    toTime48(now() - taskStatTimeBase, &rpy->statsTime);
 
     // Task count plus type code of task stats
 
@@ -403,7 +403,7 @@ size_t TaskPool::fillBufferWithTaskStats(uint8_t subType, void* buf)
 	    ts->statCnts[5] = htoas((uint16_t) task->stats.rpyRcv);
 
 	    if (subType & 1) {
-		taskStatTimeBase = now().tv_sec;
+		taskStatTimeBase = now();
 		task->stats.usmXmt.reset();
 		task->stats.reqXmt.reset();
 		task->stats.rpyXmt.reset();

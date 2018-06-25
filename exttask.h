@@ -12,7 +12,7 @@ class ExternalTask : public TaskInfo {
     sockaddr_in saCmd, saData;
     int contSocketErrors;
     uint32_t totalSocketErrors;
-    mutable time_t lastCommandTime, lastAliveCheckTime;
+    mutable int64_t lastCommandTime, lastAliveCheckTime;
 
     ExternalTask();
 
@@ -39,7 +39,7 @@ class ExternalTask : public TaskInfo {
     virtual void handleKeepAlive();
     virtual void handleUnknownCommand(CommandHeader const *, size_t len);
 
-    void commandReceived() const { lastCommandTime = now().tv_sec; }
+    void commandReceived() const { lastCommandTime = now(); }
     bool sendErrorToClient(status_t);
     bool sendAckToClient(void const*, size_t);
     bool sendMessageToClient(AcnetClientMessage*);

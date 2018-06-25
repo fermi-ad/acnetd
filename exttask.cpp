@@ -6,7 +6,7 @@
 ExternalTask::ExternalTask(TaskPool& taskPool, taskhandle_t handle, taskid_t id, pid_t pid, uint16_t cmdPort,
 			    uint16_t dataPort) : TaskInfo(taskPool, handle, id),
 			    pid_(pid), contSocketErrors(0), totalSocketErrors(0),
-			    lastCommandTime(now().tv_sec), lastAliveCheckTime(now().tv_sec)
+			    lastCommandTime(now()), lastAliveCheckTime(now())
 {
 #if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
     saCmd.sin_len = sizeof(saCmd);
@@ -100,8 +100,8 @@ bool ExternalTask::sendErrorToClient(status_t err)
 
 bool ExternalTask::stillAlive(int throttle) const
 {
-    if ((now().tv_sec - lastAliveCheckTime) >= throttle) {
-	lastAliveCheckTime = now().tv_sec;
+    if ((now() - lastAliveCheckTime) >= throttle) {
+	lastAliveCheckTime = now();
 
 	if (pid()) {
 	    if (contSocketErrors > 10)
@@ -109,7 +109,7 @@ bool ExternalTask::stillAlive(int throttle) const
 	    else if (0 != kill(pid(), 0) && errno == ESRCH)
 		return false;
 	} else
-	    return (now().tv_sec - lastCommandTime) < 30;
+	    return (now() - lastCommandTime) < 30000;
     }
 
     return true;

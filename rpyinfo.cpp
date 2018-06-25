@@ -101,7 +101,7 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
     rpy->remNode_ = remNode;
     rpy->flags = flg;
     rpy->acked = false;
-    rpy->initTime_ = now().tv_sec;
+    rpy->initTime_ = now();
     rpy->totalPackets.reset();
 
     {
@@ -297,12 +297,12 @@ int ReplyPool::sendReplyPendsAndGetNextTimeout()
     RpyInfo* rpy;
 
     while (0 != (rpy = getOldest())) {
-	timeval const expiration = rpy->expiration();
+	int64_t const expiration = rpy->expiration();
 
 	if (expiration <= now())
 	    rpy->xmitReply(ACNET_PEND, 0, 0, false);
 	else
-	    return diffInMs(expiration, now());
+	    return expiration - now();
     }
     return -1;
 }
@@ -371,7 +371,7 @@ bool ReplyPool::fillReplyDetail(rpyid_t id, rpyDetail* const buf)
 	buf->remName = htoal(rpy->taskName().raw());
 	buf->lclName = htoal(rpy->task().handle().raw());
 	buf->initTime = htoal(rpy->initTime());
-	buf->lastUpdate = htoal(rpy->lastUpdate.tv_sec);
+	buf->lastUpdate = htoal(rpy->lastUpdate / 1000);
 	return true;
     } else
 	return false;
@@ -382,7 +382,6 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 {
     os << "\t\t<div class=\"section\">\n\t\t<h1>Reply ID Report</h1>\n";
 
-    time_t const currTime = now().tv_sec;
     RpyInfo const* rpy = 0;
 
     os << "<br>Max active reply IDs: " << idPool.maxActiveIdCount() << "<br>";
@@ -416,11 +415,11 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    (uint32_t) rpy->taskId().raw() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
 	    "), request ID 0x" << std::setw(4) << rpy->reqId().raw() << "</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
-	printElapsedTime(os, currTime - rpy->initTime());
+	printElapsedTime(os, now() - rpy->initTime());
 	os << " ago.</td></tr>\n";
-	if (rpy->lastUpdate.tv_sec != 0) {
+	if (rpy->lastUpdate != 0) {
 	    os << "<tr class=\"even\"><td class=\"label\">Last reply sent</td><td>";
-	    printElapsedTime(os, currTime - rpy->lastUpdate.tv_sec);
+	    printElapsedTime(os, now() - rpy->lastUpdate);
 	    os << " ago.</td></tr>\n"
 		"\t\t\t\t<tr><td class=\"label\">Sent</td><td>" << (uint32_t) rpy->totalPackets << " replies.</td></tr>\n";
 	}
