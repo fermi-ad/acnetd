@@ -225,7 +225,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 //#ifdef DEBUG
     {
 	char cBuf[16], nBuf[16];
-	syslog(LOG_INFO, "	connect: port:%d task:'%s' node:'%s' err:%d",
+	syslog(LOG_INFO, "connect: port:%d task:'%s' node:'%s' err:%d",
 	       dataPort, clientName.str(cBuf), cmd->virtualNodeName().str(nBuf), ackExt.status().raw());
     }
 //#endif

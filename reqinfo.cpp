@@ -141,7 +141,11 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	int64_t const expiration = req->expiration();
 
 	if (expiration <= now()) {
-	    AcnetHeader const hdr(ACNET_FLG_RPY, ACNET_TMO, req->remNode(), req->lclNode(),
+	    const bool mult = req->wantsMultReplies();
+	    const uint16_t flags = mult ? (ACNET_FLG_RPY | ACNET_FLG_MLT) : ACNET_FLG_RPY;
+	    const status_t status = mult ? ACNET_PEND : ACNET_TMO;
+
+	    AcnetHeader const hdr(flags, status, req->remNode(), req->lclNode(),
 				  req->taskName(), req->task().id(), req->id(), sizeof(AcnetHeader));
 #ifdef DEBUG
 	    syslog(LOG_DEBUG, "Time-out waiting for reply for request 0x%04x ...  cancelling", req->id());
@@ -151,7 +155,11 @@ int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 
 	    ++task.stats.rpyRcv;
 	    ++task.taskPool().stats.rpyRcv;
-	    cancelReqId(req->id(), true);
+
+	    if (!mult)
+		cancelReqId(req->id(), true);
+	    else
+		req->update(&root);
 
 	    if (failed)
 		task.taskPool().removeTask(&task);
