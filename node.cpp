@@ -23,8 +23,3 @@ void Node::insertBefore(Node* const node)
     next_->prev_ = prev_->next_ = this;
 }
 
-void Node::update(Node* const root)
-{
-    detach();
-    insertBefore(root);
-}
