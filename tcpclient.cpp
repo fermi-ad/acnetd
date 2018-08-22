@@ -365,7 +365,8 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 		{ sData, POLLIN, 0 }
 	    };
 
-	    int const pollStat = poll(pfd, sizeof(pfd) / sizeof(pfd[0]), 10000);
+	    int const n = handler->whichTraffic() == TcpClientProtocolHandler::AckTraffic ? 1 : sizeof(pfd) / sizeof(pfd[0]);
+	    int const pollStat = poll(pfd, n, 10000);
 
 	    if (termSignal) {
 		handler->handleShutdown();
