@@ -1209,7 +1209,7 @@ static int waitingForNodeTable()
 	    lastNodeTableDownloadRequestTime += 10;
 	    return 10000;
 	} else
-	    return (10 - delta);
+	    return (10000 - delta);
     } else if (!ourDaemon(1, 0)) {
 	syslog(LOG_INFO, "Received node table"
 #ifndef NO_DAEMON
