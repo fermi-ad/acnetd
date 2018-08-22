@@ -85,6 +85,7 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 	return true;
     }
 
+    enabledTraffic = AckTraffic;
     return false;
 }
 
@@ -307,6 +308,12 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
     return handler;
 }
 
+bool TcpClientProtocolHandler::commandSocketData()
+{
+    enabledTraffic = AllTraffic;
+    return this->handleCommandSocket();
+}
+
 void handleTcpClient(int sTcp, nodename_t tcpNode)
 {
     bool done = false;
@@ -389,7 +396,7 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 		// Check for command acks from acnetd
 
 		if (pfd[0].revents & POLLIN)
-		    done = handler->handleCommandSocket();
+		    done = handler->commandSocketData();
 
 	    } else if (pollStat == 0) {
 		if (0 != kill(getppid(), 0) && errno == ESRCH)
@@ -411,4 +418,3 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 
     exit(1);
 }
-
