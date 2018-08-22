@@ -360,9 +360,9 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 	while (!done) {
 
 	    pollfd pfd[] = {
+		{ sCmd, POLLIN, 0 },
 		{ sTcp, POLLIN, 0 },
-		{ sData, POLLIN, 0 },
-		{ sCmd, POLLIN, 0 }
+		{ sData, POLLIN, 0 }
 	    };
 
 	    int const pollStat = poll(pfd, sizeof(pfd) / sizeof(pfd[0]), 10000);
@@ -377,17 +377,17 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 
 		// Check data socket from acnetd
 
-		if (pfd[1].revents & POLLIN)
+		if (pfd[2].revents & POLLIN)
 		    done = handler->handleDataSocket();
 
 		// Check for acnetd commands from TCP client
 
-		if (pfd[0].revents & POLLIN)
+		if (pfd[1].revents & POLLIN)
 		    done = handler->handleClientSocket();
 
 		// Check for command acks from acnetd
 
-		if (pfd[2].revents & POLLIN)
+		if (pfd[0].revents & POLLIN)
 		    done = handler->handleCommandSocket();
 
 	    } else if (pollStat == 0) {
