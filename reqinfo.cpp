@@ -229,7 +229,7 @@ bool RequestPool::fillRequestDetail(reqid_t id, reqDetail* const buf)
 	buf->remNode = htoas(req->remNode().raw());
 	buf->remName = htoal(req->taskName().raw());
 	buf->lclName = htoal(req->task().handle().raw());
-	buf->initTime = htoal(req->initTime());
+	buf->initTime = htoal(req->initTime() / 1000);
 	buf->lastUpdate = htoal(req->lastUpdate / 1000);
 	return true;
     } else
