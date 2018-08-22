@@ -384,6 +384,7 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 
     RpyInfo const* rpy = 0;
 
+    os << "<br>Active reply IDs: " << idPool.activeIdCount();
     os << "<br>Max active reply IDs: " << idPool.maxActiveIdCount() << "<br>";
 
     while (0 != (rpy = idPool.next(rpy))) {
