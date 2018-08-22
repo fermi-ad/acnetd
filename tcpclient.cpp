@@ -11,9 +11,9 @@
 
 
 TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData,
-						    nodename_t tcpNode, ipaddr_t remoteAddr) :
-						    sTcp(sTcp), sCmd(sCmd), sData(sData),
-						    tcpNode(tcpNode), remoteAddr(remoteAddr)
+						   nodename_t tcpNode, ipaddr_t remoteAddr) :
+    sTcp(sTcp), sCmd(sCmd), sData(sData), tcpNode(tcpNode),
+    remoteAddr(remoteAddr), enabledTraffic(AllTraffic)
 {
 }
 
@@ -85,6 +85,7 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 	return true;
     }
 
+    enabledTraffic = AckTraffic;
     return false;
 }
 
@@ -307,6 +308,12 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
     return handler;
 }
 
+bool TcpClientProtocolHandler::commandSocketData()
+{
+    enabledTraffic = AllTraffic;
+    return this->handleCommandSocket();
+}
+
 void handleTcpClient(int sTcp, nodename_t tcpNode)
 {
     bool done = false;
@@ -360,12 +367,13 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 	while (!done) {
 
 	    pollfd pfd[] = {
+		{ sCmd, POLLIN, 0 },
 		{ sTcp, POLLIN, 0 },
-		{ sData, POLLIN, 0 },
-		{ sCmd, POLLIN, 0 }
+		{ sData, POLLIN, 0 }
 	    };
 
-	    int const pollStat = poll(pfd, sizeof(pfd) / sizeof(pfd[0]), 10000);
+	    int const n = handler->whichTraffic() == TcpClientProtocolHandler::AckTraffic ? 1 : sizeof(pfd) / sizeof(pfd[0]);
+	    int const pollStat = poll(pfd, n, 10000);
 
 	    if (termSignal) {
 		handler->handleShutdown();
@@ -377,18 +385,18 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 
 		// Check data socket from acnetd
 
-		if (pfd[1].revents & POLLIN)
+		if (pfd[2].revents & POLLIN)
 		    done = handler->handleDataSocket();
 
 		// Check for acnetd commands from TCP client
 
-		if (pfd[0].revents & POLLIN)
+		if (pfd[1].revents & POLLIN)
 		    done = handler->handleClientSocket();
 
 		// Check for command acks from acnetd
 
-		if (pfd[2].revents & POLLIN)
-		    done = handler->handleCommandSocket();
+		if (pfd[0].revents & POLLIN)
+		    done = handler->commandSocketData();
 
 	    } else if (pollStat == 0) {
 		if (0 != kill(getppid(), 0) && errno == ESRCH)
@@ -410,4 +418,3 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 
     exit(1);
 }
-

@@ -1406,33 +1406,44 @@ class TcpClientProtocolHandler : private Noncopyable
 {
     int getSocketPort(int);
 
+ public:
+    enum Traffic { AckTraffic, AllTraffic };
+
  protected:
     int sTcp, sCmd, sData;
     nodename_t tcpNode;
     ipaddr_t remoteAddr;
 
+    Traffic enabledTraffic;
+
     bool readBytes(void *, size_t);
     bool handleClientCommand(CommandHeader *, size_t);
+
+    virtual bool handleCommandSocket() =  0;
 
  public:
     TcpClientProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~TcpClientProtocolHandler() {}
 
+    Traffic whichTraffic() const { return enabledTraffic; }
+
     virtual bool handleClientSocket() =  0;
-    virtual bool handleCommandSocket() =  0;
     virtual bool handleDataSocket() =  0;
     virtual bool handleClientPing() =  0;
     virtual void handleShutdown() = 0;
+
+    bool commandSocketData();
 };
 
 class RawProtocolHandler : public TcpClientProtocolHandler
 {
+    virtual bool handleCommandSocket();
+
  public:
     RawProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~RawProtocolHandler() {}
 
     virtual bool handleClientSocket();
-    virtual bool handleCommandSocket();
     virtual bool handleDataSocket();
     virtual bool handleClientPing();
     virtual void handleShutdown();
@@ -1461,12 +1472,13 @@ class WebSocketProtocolHandler : public TcpClientProtocolHandler
     bool handleAcnetCommand(std::vector<uint8_t>&);
     bool sendBinaryDataToClient(Pkt2 *, ssize_t, uint16_t);
 
+    virtual bool handleCommandSocket();
+
  public:
     WebSocketProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~WebSocketProtocolHandler() {}
 
     virtual bool handleClientSocket();
-    virtual bool handleCommandSocket();
     virtual bool handleDataSocket();
     virtual bool handleClientPing();
     virtual void handleShutdown();
