@@ -11,9 +11,9 @@
 
 
 TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData,
-						    nodename_t tcpNode, ipaddr_t remoteAddr) :
-						    sTcp(sTcp), sCmd(sCmd), sData(sData),
-						    tcpNode(tcpNode), remoteAddr(remoteAddr)
+						   nodename_t tcpNode, ipaddr_t remoteAddr) :
+    sTcp(sTcp), sCmd(sCmd), sData(sData), tcpNode(tcpNode),
+    remoteAddr(remoteAddr), enabledTraffic(AllTraffic)
 {
 }
 

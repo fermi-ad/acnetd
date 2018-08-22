@@ -1406,10 +1406,15 @@ class TcpClientProtocolHandler : private Noncopyable
 {
     int getSocketPort(int);
 
+ public:
+    enum Traffic { AckTraffic, AllTraffic };
+
  protected:
     int sTcp, sCmd, sData;
     nodename_t tcpNode;
     ipaddr_t remoteAddr;
+
+    Traffic enabledTraffic;
 
     bool readBytes(void *, size_t);
     bool handleClientCommand(CommandHeader *, size_t);
@@ -1417,6 +1422,8 @@ class TcpClientProtocolHandler : private Noncopyable
  public:
     TcpClientProtocolHandler(int, int, int, nodename_t, ipaddr_t);
     virtual ~TcpClientProtocolHandler() {}
+
+    Traffic whichTraffic() const { return enabledTraffic; }
 
     virtual bool handleClientSocket() =  0;
     virtual bool handleCommandSocket() =  0;
