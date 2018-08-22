@@ -243,6 +243,7 @@ void RequestPool::generateReqReport(std::ostream& os)
 
     ReqInfo const* req = 0;
 
+    os << "<br>Active request IDs: " << idPool.activeIdCount();
     os << "<br>Max active request IDs: " << idPool.maxActiveIdCount() << "<br>";
 
     while (0 != (req = idPool.next(req))) {
