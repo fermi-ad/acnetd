@@ -115,7 +115,7 @@ inline uint32_t atohl(uint32_t v) throw()
 // after 15 years, we're just starting to be more formal about
 // releasing new versions.
 
-#define ACNET_INTERNALS	0x0100
+#define ACNET_INTERNALS	0x0101
 
 // Defines the API that local clients use to communicate with ACNET so
 // it's another project-specific version number. For acnetd, this is
