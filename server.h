@@ -98,6 +98,32 @@ inline uint32_t atohl(uint32_t v) throw()
     #define NO_DAEMON 1
 #endif
 
+// These version numbers store the major number in the upper byte and
+// the minor in the lower byte. They're in hexadecimal so a version
+// number like 0x915 means v9.21.
+
+// Defines the version number of the on-the-wire layout of an ACNET
+// packet. There hasn't been an official numbering system (each ACNET
+// implementation seemed to choose their own versioning.) We picked
+// this number because it was the largest of all the implementations.
+
+#define ACNET_PROTOCOL	0x0915
+
+// Defines the version of the internals of ACNET. This is a
+// project-specific version number. For this project, it is the
+// version of the source to acnetd. We've been lax at doing this so,
+// after 15 years, we're just starting to be more formal about
+// releasing new versions.
+
+#define ACNET_INTERNALS	0x0100
+
+// Defines the API that local clients use to communicate with ACNET so
+// it's another project-specific version number. For acnetd, this is
+// the version number of the command API we use over the local
+// loopback socket. In MOOC, it would be the C language API.
+
+#define ACNET_API	0x0900
+
 // Project-wide types and functions
 
 uint32_t ator(char const *);
