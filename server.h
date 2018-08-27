@@ -81,7 +81,7 @@ inline uint32_t atohl(uint32_t v) throw()
     return (v >> 24) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | (v << 24);
 }
 
-#define be16(v)	 ((uint16_t) (v))
+#define be16(v)	 uint16_t(v)
 
 #else
 
@@ -90,7 +90,7 @@ inline uint32_t atohl(uint32_t v) throw()
 #define atohs(v) ((uint16_t) (v))
 #define atohl(v) ((uint32_t) (v))
 
-#define be16(v)	 ((v >> 8) | (v << 8))
+#define be16(v)	 (uint8_t(v >> 8) | uint16_t(v << 8))
 
 #endif
 
