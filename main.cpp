@@ -1206,7 +1206,7 @@ static int waitingForNodeTable()
 	    }
 	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t(ator("NODES")),
 			     nodename_t(), AcnetTaskId, 0, 0);
-	    lastNodeTableDownloadRequestTime += 10;
+	    lastNodeTableDownloadRequestTime += 10000;
 	    return 10000;
 	} else
 	    return (10000 - delta);
