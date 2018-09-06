@@ -1400,7 +1400,7 @@ int main(int argc, char** argv)
 		    // Look at network traffic.
 
 		    if ((pfd[0].revents & POLLIN) != 0) {
-			static uint8_t buf[64 * 1024];
+			static uint8_t buf[INTERNAL_ACNET_PACKET_SIZE];
 			sockaddr_in in;
 			ssize_t len;
 
