@@ -13,7 +13,7 @@ bool InternalTask::equals(TaskInfo const* task) const
 }
 
 void InternalTask::sendReplyCore(rpyid_t rpyId, void const* d, uint16_t n,
-				    status_t status, uint16_t flags)
+				 status_t status, uint16_t flags)
 {
     RpyInfo const* const rpy = taskPool().rpyPool.rpyInfo(rpyId);
 
@@ -29,15 +29,14 @@ void InternalTask::sendReplyCore(rpyid_t rpyId, void const* d, uint16_t n,
 }
 
 void InternalTask::sendLastReply(rpyid_t rpy, status_t status,
-				    void const* const d, uint16_t n)
+				 void const* const d, uint16_t n)
 {
     sendReplyCore(rpy, d, n, status, ACNET_FLG_RPY);
     taskPool().rpyPool.endRpyId(rpy);
 }
 
 void InternalTask::sendReply(rpyid_t rpy, status_t status, void const* d,
-				uint16_t n)
+			     uint16_t n)
 {
     sendReplyCore(rpy, d, n, status, ACNET_FLG_RPY | ACNET_FLG_MLT);
 }
-

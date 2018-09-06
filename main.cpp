@@ -479,8 +479,8 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 			// can reply.
 
 			RpyInfo const* const rpy = taskPool->rpyPool.alloc(task, hdr.msgId(), hdr.clntTaskId(),
-							       hdr.svrTaskName(), hdr.server(),
-							       hdr.client(), hdr.flags());
+									   hdr.svrTaskName(), hdr.server(),
+									   hdr.client(), hdr.flags());
 
 			// Send the packet to the client. If the
 			// communications fails, we deallocate the reply.
