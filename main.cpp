@@ -1338,7 +1338,7 @@ int main(int argc, char** argv)
 		}
 #endif
 
-		// If we received an termination signal, we may need to send
+		// If we received a termination signal, we may need to send
 		// network shutdown traffic.
 
 		if (termSignal) {
