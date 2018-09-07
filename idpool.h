@@ -8,7 +8,8 @@
 // Template to create pool of objects referenced by id. The size of the pool needs to be a power
 // of two.
 
-template<class T, class R, size_t size>
+template<class T, class R, size_t size,
+	 bool = (size > 0 && (((~size + 1) & size) ^ size) == 0) >
 class IdPool {
 
     class CircBuf {
@@ -58,10 +59,6 @@ class IdPool {
     IdPool() :
 	bank(bankGen()), maxActiveIdCount_(0)
     {
-#ifdef DEBUG
-	assert(size > 0 && (((~size + 1) & size) ^ size) == 0);
-#endif
-
 	// Initially add all ids to the free list
 
 	for (size_t ii = 0; ii < size; ii++)
@@ -172,6 +169,9 @@ class IdPool {
       return (uint16_t) ((random() & ~(size - 1)) | size);
     }
 };
+
+template<class T, class R, size_t size>
+class IdPool<T, R, size, false>;
 
 #endif
 
