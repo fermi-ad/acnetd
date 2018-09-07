@@ -458,7 +458,7 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
     if (PKT_IS_REQUEST(flg) || PKT_IS_USM(flg)) {
 	uint16_t const* const msg = (uint16_t*) hdr->msg();
 	uint16_t const size = hdr->msgLen() - sizeof(AcnetHeader);
-	rpyid_t id = rpyid_t(htoas(hdr->status().raw()));
+	rpyid_t id = rpyid_t(hdr->status().raw());
 
 	// The data size has to be a multiple of two (historically
 	// the diagnostics assume an array of 16-bit values) and

@@ -18,7 +18,7 @@ void InternalTask::sendReplyCore(rpyid_t rpyId, void const* d, uint16_t n,
     RpyInfo const* const rpy = taskPool().rpyPool.rpyInfo(rpyId);
 
     if (rpy) {
-	AcnetHeader const hdr(status.isFatal() ? flags & ~htoas(ACNET_FLG_MLT) : flags,
+	AcnetHeader const hdr(status.isFatal() ? flags & ~ACNET_FLG_MLT : flags,
 			    status, rpy->lclNode(), rpy->remNode(),
 			    rpy->taskName(), rpy->taskId(), rpy->reqId(),
 			    sizeof(AcnetHeader) + MSG_LENGTH(n));
