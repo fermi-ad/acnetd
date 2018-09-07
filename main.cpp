@@ -410,7 +410,7 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	if (!rpy->beenAcked())
 	    task.decrementPendingRequests();
 
-	hdr.setStatus((status_t) rpy->id().raw());
+	hdr.setStatus(rpy->id());
 	taskPool->rpyPool.endRpyId(rpy->id());
 
 	if (task.sendDataToClient(&hdr)) {
@@ -488,7 +488,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 			// CANCELs) for the reason we stuff the reply ID in
 			// the status field.
 
-			hdr.setStatus((status_t) rpy->id().raw());
+			hdr.setStatus(rpy->id());
 			if (task->sendDataToClient(&hdr)) {
 			    ++task->stats.reqRcv;
 			    continue;

@@ -373,6 +373,7 @@ class AcnetHeader {
     uint8_t const *msg() const { return msg_; }
 
     void setStatus(status_t status) { status_ = htoas(status.raw()); }
+    void setStatus(rpyid_t rpyId) { status_ = htoas(rpyId.raw()); }
     void setFlags(uint16_t flags) { flags_ = htoas(flags); }
     void setClient(trunknode_t tn) { cTrunk_ = tn.trunk().raw(); cNode_ = tn.node(); }
     bool isEMR();
