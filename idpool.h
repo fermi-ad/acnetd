@@ -126,9 +126,10 @@ class IdPool {
 
     T* entry(R const id)
     {
-	uint16_t ii = idToIndex(id);
+	uint16_t const ii = idToIndex(id);
 
-	return (ii | bank) == id.raw() && ii < size && inUse.test(ii) ? begin() + ii : 0;
+	assert(ii < size);
+	return (ii | bank) == id.raw() && inUse.test(ii) ? begin() + ii : 0;
     }
 
     R id(T const* const entry) const
