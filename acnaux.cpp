@@ -467,8 +467,8 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 
 	if (!(size & 1) && size >= 2) {
 	    int8_t const type = (int8_t) atohs(msg[0]) & 0xff;
-	    uint8_t subType = atohs(msg[0]) >> 8;
-	    size_t dataLen = (size - 2) / 2;
+	    uint8_t const subType = atohs(msg[0]) >> 8;
+	    size_t const dataLen = (size - 2) / 2;
 	    uint16_t const* const data = msg + 1;;
 
 	    switch (type) {
