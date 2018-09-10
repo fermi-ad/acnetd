@@ -23,6 +23,7 @@ class IdPool {
 
 	void push(size_t id)
 	{
+	    assert(id < size);
 	    assert(nItems < size);
 	    item[(head + nItems++) % size] = id;
 	}
@@ -32,6 +33,7 @@ class IdPool {
 	    assert(nItems > 0);
 	    size_t const tmp = item[head];
 
+	    assert(tmp < size);
 	    head = (head + 1) % size;
 	    nItems -= 1;
 	    return tmp;
