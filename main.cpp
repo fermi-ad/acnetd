@@ -200,7 +200,7 @@ struct CmdLineArgs {
 	std::istringstream is(s);
 
 	while (getline(is, s, ',')) {
-	    taskReject.insert(taskhandle_t(ator(s.c_str())));
+	    taskReject.insert(taskhandle_t(s));
 	    syslog(LOG_NOTICE, "rejecting requests to task '%s'", s.c_str());
 	}
     }
@@ -1201,7 +1201,7 @@ static DeltaTime waitingForNodeTable()
 
 	if (delta >= tenSec) {
 	    syslog(LOG_INFO, "Requesting node table download");
-	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t(ator("NODES")),
+	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t("NODES"),
 			     nodename_t(), AcnetTaskId, 0, 0);
 	    lastNodeTableDownloadRequestTime += tenSec;
 	    return tenSec;

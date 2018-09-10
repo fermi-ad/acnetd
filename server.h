@@ -190,6 +190,8 @@ class taskhandle_t {
  public:
     taskhandle_t() : h(0) {}
     explicit taskhandle_t(uint32_t const handle) : h(handle) {}
+    explicit taskhandle_t(char const*);
+    explicit taskhandle_t(std::string const&);
 
     bool operator< (taskhandle_t const o) const { return h < o.h; }
     bool operator== (taskhandle_t const o) const { return h == o.h; }

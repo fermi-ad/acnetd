@@ -7,6 +7,12 @@
 #endif
 #include "server.h"
 
+taskhandle_t::taskhandle_t(char const* const n) : h(ator(n))
+{}
+
+taskhandle_t::taskhandle_t(std::string const& n) : h(ator(n.c_str()))
+{}
+
 // Creates the object by initializing some default values. Since the default values reflect an unused object, it adds itself
 // to the free list.
 

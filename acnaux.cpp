@@ -6,7 +6,7 @@ static AbsTime bootTime = now();
 
 void sendKillerMessage(trunknode_t const addr)
 {
-    static taskhandle_t const task(ator("ACNET"));
+    static taskhandle_t const task("ACNET");
     uint16_t const data[] = { htoas(0x20b), htoas(1), htoas(addr.raw()) };
 
     sendUsmToNetwork(ACNET_MULTICAST, task, nodename_t(), AcnetTaskId,
@@ -14,7 +14,7 @@ void sendKillerMessage(trunknode_t const addr)
 }
 
 AcnetTask::AcnetTask(TaskPool& taskPool, taskid_t id) :
-    InternalTask(taskPool, taskhandle_t(ator("ACNET")), id)
+    InternalTask(taskPool, taskhandle_t("ACNET"), id)
 {
 }
 

@@ -26,8 +26,8 @@ TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) :
 	tasks_[ii] = 0;
 
     tasks_[AcnetTaskId.raw()] = new AcnetTask(*this, AcnetTaskId);
-    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNET")), tasks_[AcnetTaskId.raw()]));
-    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNAUX")), tasks_[AcnetTaskId.raw()]));
+    active.insert(TaskHandleMap::value_type(taskhandle_t("ACNET"), tasks_[AcnetTaskId.raw()]));
+    active.insert(TaskHandleMap::value_type(taskhandle_t("ACNAUX"), tasks_[AcnetTaskId.raw()]));
 }
 
 taskid_t TaskPool::nextFreeTaskId(ConnectCommand const* const cmd)
@@ -172,7 +172,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 	    if (clientName.isBlank()) {
 		char buf[8];
 		sprintf(buf, "%%%05d", dataPort);
-		clientName = taskhandle_t(ator(buf));
+		clientName = taskhandle_t(buf);
 	    }
 
 	    // Check to see if we are already connected and if we are, just
