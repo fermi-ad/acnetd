@@ -356,14 +356,14 @@ void setMyIp()
 
 	// Save the rad50 equivalent of our host name
 
-	myHostName_ = nodename_t(ator(name));
+	myHostName_ = nodename_t(name);
     }
 
     // Add generic multicast to trunk/node table
 
     ipaddr_t mcAddr = octetsToIp(239, 128, 4, 1);
 
-    insertNode(ACNET_MULTICAST, nodename_t(ator("MCAST")), mcAddr);
+    insertNode(ACNET_MULTICAST, nodename_t("MCAST"), mcAddr);
     joinMulticastGroup(sClient, mcAddr);
 }
 
@@ -419,7 +419,7 @@ void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
 	    myNode_ = tn;
 	}
     } else if (newName == ILLEGAL_NODE)
-	newName = nodename_t(ator("%%%%%%"));
+	newName = nodename_t("%%%%%%");
 
     if (newName.isBlank() && !newAddr.isValid())
 	eraseNode(tn);

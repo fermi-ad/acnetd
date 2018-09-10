@@ -108,6 +108,12 @@ static DataQueue outgoing;
 
 static DataOut* allocPacket(trunknode_t);
 
+nodename_t::nodename_t(char const* const n) : h(ator(n))
+{}
+
+nodename_t::nodename_t(std::string const& n) : h(ator(n.c_str()))
+{}
+
 // Allocates a new network packet. The new packet is associated with the given target node.
 
 static DataOut* allocPacket(trunknode_t tgt)

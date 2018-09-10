@@ -209,6 +209,8 @@ class nodename_t {
     nodename_t() : h(0) {}
     explicit nodename_t(uint32_t const handle) : h(handle) {}
     explicit nodename_t(taskhandle_t const o) : h(o.raw()) {}
+    explicit nodename_t(std::string const&);
+    explicit nodename_t(char const*);
 
     bool operator< (nodename_t const o) const { return h < o.h; }
     bool operator== (nodename_t const o) const { return h == o.h; }

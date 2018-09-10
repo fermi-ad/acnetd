@@ -108,7 +108,7 @@ struct CmdLineArgs {
 				return false;
 			    }
 			}
-			setMyHostName(nodename_t(ator(curPtr)));
+			setMyHostName(nodename_t(curPtr));
 			done = true;
 			break;
 
@@ -144,7 +144,7 @@ struct CmdLineArgs {
 				return false;
 			    }
 			}
-			tcpNodeName = nodename_t(ator(curPtr));
+			tcpNodeName = nodename_t(curPtr);
 			done = true;
 			break;
 
