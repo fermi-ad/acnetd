@@ -55,7 +55,6 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 
     switch (cmd->cmd()) {
      case CommandList::cmdConnect:
-     case CommandList::cmdTcpConnect:
 	{
 	    TcpConnectCommand tmp;
 
@@ -66,6 +65,15 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 	    tmp.setRemoteAddr(remoteAddr);
 
 	    res = send(sCmd, &tmp, sizeof(tmp), 0);
+	}
+	break;
+
+     case CommandList::cmdTcpConnect:
+	{
+	    AckConnect ack;
+
+	    ack.setStatus(ACNET_IVM);
+	    res = send(sTcp, &ack, sizeof(ack), 0);
 	}
 	break;
 
