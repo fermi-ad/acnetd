@@ -394,7 +394,7 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	assert(rpy->task().acceptsRequests());
 
 #ifdef DEBUG
-	syslog(LOG_NOTICE, "CANCEL REQUEST: id = 0x%04x", rpy->reqId());
+	syslog(LOG_NOTICE, "CANCEL REQUEST: id = 0x%04x", rpy->reqId().raw());
 #endif
 
 	// NOTICE: Our data passing protocol between acnetd and local
@@ -470,7 +470,8 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 		// remote client.
 
 #ifdef DEBUG
-		syslog(LOG_INFO, "NEW REQUEST: id = 0x%04x", hdr.msgId());
+		syslog(LOG_INFO, "NEW REQUEST: id = 0x%04x",
+		       hdr.msgId().raw());
 #endif
 		if (task->testPendingRequestsAndIncrement()) {
 		    try {

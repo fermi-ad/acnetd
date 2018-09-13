@@ -433,7 +433,7 @@ void TaskPool::removeAllTasks()
 
 void TaskPool::removeOnlyThisTask(TaskInfo* const task, status_t status, bool sendLastReply)
 {
-    assert(tasks_[task->id()]);
+    assert(tasks_[task->id().raw()]);
 
     tasks_[task->id().raw()] = 0;
 

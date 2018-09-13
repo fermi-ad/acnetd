@@ -125,7 +125,7 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
 	    }
 	}
 #ifdef DEBUG
-	syslog(LOG_INFO, "CANCEL REQUEST: id = 0x%04x -- %s packet transmitted.", id, xmt ? "CANCEL" : "no");
+	syslog(LOG_INFO, "CANCEL REQUEST: id = 0x%04x -- %s packet transmitted.", id.raw(), xmt ? "CANCEL" : "no");
 #endif
 	req->task_ = 0;
 	release(req);
@@ -149,7 +149,7 @@ DeltaTime RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	    AcnetHeader const hdr(flags, status, req->remNode(), req->lclNode(),
 				  req->taskName(), req->task().id(), req->id(), sizeof(AcnetHeader));
 #ifdef DEBUG
-	    syslog(LOG_DEBUG, "Time-out waiting for reply for request 0x%04x ...  cancelling", req->id());
+	    syslog(LOG_DEBUG, "Time-out waiting for reply for request 0x%04x ...  cancelling", req->id().raw());
 #endif
 	    TaskInfo& task = req->task();
 	    bool failed = !task.sendDataToClient(&hdr);
@@ -223,7 +223,7 @@ bool RequestPool::fillRequestDetail(reqid_t id, reqDetail* const buf)
     ReqInfo const* const req = idPool.entry(id);
 
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "request detail: looking up 0x%04x", atohs(id));
+    syslog(LOG_DEBUG, "request detail: looking up 0x%04x", atohs(id.raw()));
 #endif
     if (req) {
 	buf->id = htoas(id.raw());

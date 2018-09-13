@@ -138,8 +138,9 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 #ifdef DEBUG
 		syslog(LOG_DEBUG, "Created new rep (id = 0x%04x) for task "
 		       "'%s' ... requestor is task %d on trunk %x, node %d "
-		       "-- %d active reply structures", rpy->id(), rpy->taskName().str(),
-		       rpy->taskId(), rpy->remNode().trunk(), rpy->remNode().node(),
+		       "-- %d active reply structures", rpy->id().raw(),
+		       rpy->taskName().str(), rpy->taskId().raw(),
+		       rpy->remNode().trunk().raw(), rpy->remNode().node(),
 		       (int) idPool.activeIdCount());
 #endif
 	    }
@@ -237,7 +238,8 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id.raw(), rpy->task().id().raw());
 
 #ifdef DEBUG
-	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.", rpy->reqId());
+	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.",
+	       rpy->reqId().raw());
 #endif
 
 	if (status != ACNET_SUCCESS) {
@@ -362,7 +364,7 @@ bool ReplyPool::fillReplyDetail(rpyid_t id, rpyDetail* const buf)
     RpyInfo const* const rpy = idPool.entry(id);
 
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "reply detail: looking up 0x%04x", atohs(id));
+    syslog(LOG_DEBUG, "reply detail: looking up 0x%04x", atohs(id.raw()));
 #endif
 
     if (rpy) {

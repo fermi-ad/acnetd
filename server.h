@@ -1062,7 +1062,7 @@ class RpyInfo : public TimeSensitive<ReplyRoot> {
     void ackIt()
     {
 #ifdef DEBUG
-	syslog(LOG_INFO, "ACK REQUEST: id = 0x%04x", reqId());
+	syslog(LOG_INFO, "ACK REQUEST: id = 0x%04x", reqId().raw());
 #endif
 	acked = true;
     }
