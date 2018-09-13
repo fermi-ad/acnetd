@@ -19,7 +19,7 @@ class node_t {
     size_t n_;
 
  public:
-    explicit node_t(size_t n) : n_(n) { assert(t < 256); }
+    explicit node_t(size_t n) : n_(n) { assert(n < 256); }
     template <class T> node_t(T) = delete;
     bool operator< (node_t const o) const { return n_ < o.n_; }
     bool operator== (node_t const o) const { return n_ == o.n_; }
