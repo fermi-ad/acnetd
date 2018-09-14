@@ -18,6 +18,8 @@
 #include <util.h>
 #endif
 
+typedef std::map<nodename_t, TaskPool *> TaskPoolMap;
+
 // Local types...
 
 // Local prototypes...
@@ -38,10 +40,10 @@ bool dumpIncoming = false;
 AbsTime statTimeBase = now();
 int sClient = -1;
 uint16_t acnetPort = ACNET_PORT;
-TaskPoolMap taskPoolMap;
 
 // Local variables...
 
+static TaskPoolMap taskPoolMap;
 #ifdef TCP_CLIENTS
 static int sClientTcp = -1;
 static nodename_t tcpNodeName;

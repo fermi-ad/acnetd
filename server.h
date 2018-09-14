@@ -1399,8 +1399,6 @@ class TaskPool : private Noncopyable {
     bool isPromiscuous(taskhandle_t) const;
 };
 
-typedef std::map<nodename_t, TaskPool *> TaskPoolMap;
-
 extern uint16_t acnetPort;
 class DataOut;
 struct pollfd;
