@@ -280,7 +280,7 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
 	if (strcmp("RAW", line) == 0) {
 	    handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode,
 					     remoteAddr);
-	    syslog(LOG_DEBUG, "detected Raw p	rotocol");
+	    syslog(LOG_DEBUG, "detected Raw protocol");
 	} else if (!handler && (cp = strchr(line, ' '))) {
 	    *cp++ = 0;
 	    if (strcmp("Sec-WebSocket-Key:", line) == 0) {
