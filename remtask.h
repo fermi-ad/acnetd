@@ -8,7 +8,7 @@
 // TCP client connections from remote machines
 //
 class RemoteTask : public ExternalTask {
-    ipaddr_t remoteAddr;
+    const ipaddr_t remoteAddr;
 
     RemoteTask();
 
@@ -22,6 +22,8 @@ protected:
  public:
     RemoteTask(TaskPool&, taskhandle_t, taskid_t, pid_t, uint16_t, uint16_t, ipaddr_t);
     virtual ~RemoteTask() {}
+
+    ipaddr_t getRemoteAddr() const { return remoteAddr; }
 
     bool acceptsUsm() const { return false; }
     bool acceptsRequests() const { return false; }

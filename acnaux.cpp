@@ -1,6 +1,7 @@
 #include <sys/time.h>
 #include <cstring>
 #include "server.h"
+#include "remtask.h"
 
 static int64_t bootTime = now();
 
@@ -84,6 +85,26 @@ void AcnetTask::taskNameHandler(rpyid_t id, uint8_t subType)
 	sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
     } else
 	sendLastReply(id, ACNET_NOTASK);
+}
+
+void AcnetTask::taskIpHandler(rpyid_t id, uint16_t const* const data, uint16_t dataSize)
+{
+    if (dataSize == sizeof(taskid_t) / 2) {
+	TaskInfo const* const tmp = taskPool().getTask(taskid_t(atohs(data[0])));
+
+	if (tmp) {
+	    uint32_t rpy;
+
+	    if (RemoteTask const *task = dynamic_cast<RemoteTask const *>(tmp))
+		rpy = htoal(task->getRemoteAddr().value());
+	    else
+		rpy = htonl(INADDR_LOOPBACK);
+
+	    sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
+	}
+    }
+
+    sendLastReply(id, ACNET_LEVEL2);
 }
 
 void AcnetTask::taskNameHandler(rpyid_t id, uint16_t const* const data, uint16_t dataSize)
@@ -554,6 +575,10 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 
 	     case 18:
 		taskNameHandler(id, data, dataLen);
+		break;
+
+	     case 19:
+		taskIpHandler(id, data, dataLen);
 		break;
 
 	     default:

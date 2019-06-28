@@ -3,16 +3,13 @@
 #include <sys/socket.h>
 #include <signal.h>
 #include <netinet/tcp.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <sha.h>
 
-#define SEND_BUF_SIZE                   (64 * 1024 - 2)
-#define RECEIVE_BUF_SIZE                (128 * 1024)
-
-
 TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData,
 						   nodename_t tcpNode, ipaddr_t remoteAddr) :
-    sTcp(sTcp), sCmd(sCmd), sData(sData), tcpNode(tcpNode),
+    maxSocketQSize(0), sTcp(sTcp), sCmd(sCmd), sData(sData), tcpNode(tcpNode),
     remoteAddr(remoteAddr), enabledTraffic(AllTraffic)
 {
 }
@@ -28,9 +25,13 @@ bool TcpClientProtocolHandler::readBytes(void *buf, size_t count)
 	    buf = ((uint8_t*) buf) + len;
 	else if (len == 0)
 	    return false;
-	else {
-	    syslog(LOG_INFO, "tcpclient: error reading from the client -- %m");
-	    return false;
+	else if (len == -1) {
+	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+		poll(0, 0, 1);
+	    } else {
+		syslog(LOG_ERR, "error reading from the client -- %m");
+		return false;
+	    }
 	}
     }
 
@@ -43,7 +44,7 @@ int TcpClientProtocolHandler::getSocketPort(int s)
     socklen_t in_len = (socklen_t) sizeof(in);
 
     if (-1 == getsockname(s, (struct sockaddr*) &in, &in_len)) {
-	syslog(LOG_ERR, "tcpclient: unable to read data socket port -- %m");
+	syslog(LOG_ERR, "unable to read data socket port -- %m");
 	return -1;
     } else
 	return ntohs(in.sin_port);
@@ -71,17 +72,17 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 	    tmp.setDataPort(getSocketPort(sData));
 	    tmp.setRemoteAddr(remoteAddr);
 
-	    res = send(sCmd, &tmp, sizeof(tmp), 0);
+	    res = ::send(sCmd, &tmp, sizeof(tmp), 0);
 	}
 	break;
 
      default:
-	res = send(sCmd, cmd, len, 0);
+	res = ::send(sCmd, cmd, len, 0);
 	break;
     }
 
     if (res == -1) {
-	syslog(LOG_ERR, "tcpclient: error sending command to acnetd -- %m");
+	syslog(LOG_ERR, "error sending command to acnetd -- %m");
 	return true;
     }
 
@@ -96,12 +97,9 @@ static int createDataSocket()
     if (-1 != (s = socket(AF_INET, SOCK_DGRAM, 0))) {
         struct sockaddr_in in;
 
-	int v = SEND_BUF_SIZE;
-        if (-1 == setsockopt(s, SOL_SOCKET, SO_SNDBUF, &v, sizeof(v)))
-            syslog(LOG_ERR, "tcpclient: couldn't set data socket send buffer size -- %m");
-	v = RECEIVE_BUF_SIZE;
+	int v = 256 * 1024;
         if (-1 == setsockopt(s, SOL_SOCKET, SO_RCVBUF, &v, sizeof(v)))
-            syslog(LOG_ERR, "tcpclient: couldn't set data socket receive buffer size -- %m");
+            syslog(LOG_ERR, "couldn't set data socket receive buffer size -- %m");
 
         in.sin_family = AF_INET;
 #if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
@@ -127,16 +125,16 @@ static int createDataSocket()
             if (-1 != connect(s, (struct sockaddr*) &in, sizeof(in)))
                 return s;
             else
-                syslog(LOG_ERR, "tcpclient: couldn't connect data socket to acnetd -- %m");
+                syslog(LOG_ERR, "couldn't connect data socket to acnetd -- %m");
         } else {
             socklen_t in_len = (socklen_t) sizeof(in);
 
             getsockname(s, (struct sockaddr*) &in, &in_len);
-            syslog(LOG_ERR, "tcpclient: couldn't bind to localhost:%d (data) -- %m", ntohs(in.sin_port));
+            syslog(LOG_ERR, "couldn't bind to localhost:%d (data) -- %m", ntohs(in.sin_port));
         }
         close(s);
     } else
-        syslog(LOG_ERR, "tcpclient: couldn't open AF_INET acnet client data socket -- %m");
+        syslog(LOG_ERR, "couldn't open AF_INET acnet client data socket -- %m");
 
     return -1;
 }
@@ -148,12 +146,13 @@ static int createCommandSocket()
     if (-1 != (s = socket(AF_INET, SOCK_DGRAM, 0))) {
         struct sockaddr_in in;
 
-	int v = SEND_BUF_SIZE;
+	int v = 64 * 1024;
         if (-1 == setsockopt(s, SOL_SOCKET, SO_SNDBUF, &v, sizeof(v)))
-            syslog(LOG_ERR, "tcpclient: couldn't set command socket send buffer size -- %m");
-	v = RECEIVE_BUF_SIZE;
+            syslog(LOG_ERR, "couldn't set command socket send buffer size -- %m");
+
+	v = 128 * 1024;
         if (-1 == setsockopt(s, SOL_SOCKET, SO_RCVBUF, &v, sizeof(v)))
-            syslog(LOG_ERR, "tcpclient: couldn't set command socket receive buffer size -- %m");
+            syslog(LOG_ERR, "couldn't set command socket receive buffer size -- %m");
 
         in.sin_family = AF_INET;
 #if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
@@ -314,9 +313,72 @@ bool TcpClientProtocolHandler::commandSocketData()
     return this->handleCommandSocket();
 }
 
+static inline bool socketBufferFull()
+{
+    return errno == EAGAIN || errno == EWOULDBLOCK || errno == EMSGSIZE;
+}
+
+bool TcpClientProtocolHandler::send(const void *buf, const size_t len)
+{
+    if (socketQ.empty()) {
+	ssize_t sLen = ::send(sTcp, buf, len, 0);
+
+	if (-1 == sLen) {
+	    if (!socketBufferFull())
+		return false;
+	    sLen = 0;
+	}
+
+	if ((size_t) sLen < len)
+	    socketQ.push(new SocketBuffer(((uint8_t *) buf) + sLen, len - sLen));
+
+    } else {
+	SocketBuffer *sBuf = socketQ.current()->append(buf, len);
+
+	if (sBuf)
+	    socketQ.push(sBuf);
+    }
+
+    if (socketQ.size() > maxSocketQSize)
+	maxSocketQSize = socketQ.size();
+		
+    return true;
+}
+
+bool TcpClientProtocolHandler::sendPendingPackets()
+{
+    while (!socketQ.empty()) {
+	SocketBuffer* const sBuf = socketQ.peek();
+
+	ssize_t const remaining = sBuf->remaining();
+	ssize_t const sLen = ::send(sTcp, sBuf->data(), remaining, 0);
+
+	if (-1 == sLen) {
+	    if (socketBufferFull()) {
+		return false;
+	    } else {
+		syslog(LOG_ERR, "couldn't send packet to socket -- %m");
+		return true;
+	    }
+	}
+
+	sBuf->consume(sLen);
+
+	if (sBuf->empty())
+	    delete socketQ.pop();
+
+	if (sLen < remaining)
+	    return false;
+    }
+
+    return false;
+}
+
 void handleTcpClient(int sTcp, nodename_t tcpNode)
 {
     bool done = false;
+ 
+    openlog("acnetd-tcp-fork", LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 
     // Ignore SIGPIPE so we get socket errors when we try to
     // write to the client TCP socket
@@ -327,15 +389,18 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 
     int v = 1;
     if (-1 == setsockopt(sTcp, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v)))
-	syslog(LOG_WARNING, "tcpclient: couldn't set TCP_NODELAY for socket -- %m");
+	syslog(LOG_WARNING, "couldn't set TCP_NODELAY for socket -- %m");
 
-    v = SEND_BUF_SIZE;
+    v =  256 * 1024;
     if (-1 == setsockopt(sTcp, SOL_SOCKET, SO_SNDBUF, &v, sizeof(v)))
-	syslog(LOG_ERR, "tcpclient: couldn't set data socket send buffer size -- %m");
+	syslog(LOG_ERR, "couldn't set data socket send buffer size -- %m");
 
     struct timeval tv = { 3, 0 };
     if (-1 == setsockopt(sTcp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
-	syslog(LOG_ERR, "tcpclient: couldn't set data socket timeout -- %m");
+	syslog(LOG_ERR, "couldn't set data socket timeout -- %m");
+
+    if (-1 == fcntl(sTcp, F_SETFL, O_NONBLOCK))
+	syslog(LOG_ERR, "unable to set socket non-blocking -- %m");
 
     // Connect to acnetd
 
@@ -348,9 +413,9 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
     ipaddr_t ip;
     if (getpeername(sTcp, (sockaddr*) &addr, &len) == 0) {
 	ip = ipaddr_t(ntohl(addr.sin_addr.s_addr));
-	syslog(LOG_NOTICE, "tcpclient: connection from host %s", ip.str().c_str());
+	syslog(LOG_NOTICE, "connection from host %s", ip.str().c_str());
     } else
-	syslog(LOG_NOTICE, "tcpclient: connection on socket: %d", sTcp);
+	syslog(LOG_NOTICE, "connection on socket: %d", sTcp);
 
     if (sCmd != -1 && sData != -1) {
 	TcpClientProtocolHandler *handler = handshake(sTcp, sCmd, sData, tcpNode, ip);
@@ -365,12 +430,14 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 	// Handle TCP client and acnetd messages
 
 	while (!done) {
-
 	    pollfd pfd[] = {
 		{ sCmd, POLLIN, 0 },
 		{ sTcp, POLLIN, 0 },
 		{ sData, POLLIN, 0 }
 	    };
+
+	    if (handler->anyPendingPackets())
+		pfd[1].events |= POLLOUT;
 
 	    int const n = handler->whichTraffic() == TcpClientProtocolHandler::AckTraffic ? 1 : sizeof(pfd) / sizeof(pfd[0]);
 	    int const pollStat = poll(pfd, n, 10000);
@@ -381,32 +448,46 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 		continue;
 	    }
 
-	    if (pollStat > 0) {
+	    if (pfd[1].revents & POLLOUT)
+		done = handler->sendPendingPackets();
 
-		// Check data socket from acnetd
+	    if (!done) {
+		if (pollStat > 0) {
 
-		if (pfd[2].revents & POLLIN)
-		    done = handler->handleDataSocket();
+		    // Check data socket from acnetd
 
-		// Check for acnetd commands from TCP client
+		    if (pfd[2].revents & POLLIN)
+			done = handler->handleDataSocket();
 
-		if (pfd[1].revents & POLLIN)
-		    done = handler->handleClientSocket();
+		    // Check for acnetd commands from TCP client
 
-		// Check for command acks from acnetd
+		    if (pfd[1].revents & POLLIN)
+			done = handler->handleClientSocket();
 
-		if (pfd[0].revents & POLLIN)
-		    done = handler->commandSocketData();
+		    // Check for command acks from acnetd
 
-	    } else if (pollStat == 0) {
-		if (0 != kill(getppid(), 0) && errno == ESRCH)
-		    done = true;
-		else
-		    done = handler->handleClientPing();
+		    if (pfd[0].revents & POLLIN)
+			done = handler->commandSocketData();
+
+		} else if (pollStat == 0) {
+		    if (0 != kill(getppid(), 0) && errno == ESRCH)
+			done = true;
+		    else
+			done = handler->handleClientPing();
+		}
+	    }
+
+	    if (handler->queueSize() > MAX_SOCKET_QUESIZE) {
+		syslog(LOG_ERR, "disconnecting slow client from host %s", handler->remoteAddress().str().c_str());
+		done = true;
 	    }
 	}
+
+	syslog(LOG_ERR, "disconnect from host %s (max queue size %ld)", 
+				handler->remoteAddress().str().c_str(), handler->maxQueueSize());
+
     } else
-	syslog(LOG_ERR, "tcpclient: unable to create acnetd connection sockets");
+	syslog(LOG_ERR, "unable to create acnetd connection sockets");
 
     if (sCmd != -1)
 	close(sCmd);

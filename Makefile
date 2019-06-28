@@ -31,8 +31,6 @@
 #		isn't sent, acnetd will send an ACNET_PEND to keep the
 #		request alive.
 #
-# TCP_CLIENTS   Enables support for acnet client TCP connections.
-#
 
 THIS_PLATFORM:=	$(shell uname -s)
 THIS_ARCH:=	$(shell uname -p)
@@ -40,11 +38,8 @@ THIS_ARCH:=	$(shell uname -p)
 ACNETD=		acnetd
 ACNETD_OBJS=	main.o taskinfo.o inttask.o exttask.o mctask.o lcltask.o remtask.o \
 		taskpool.o ipaddr.o network.o acnaux.o reqinfo.o rpyinfo.o \
-		mcast.o global.o rad50.o node.o timesensitive.o
-
-ifdef TCP_CLIENTS
-ACNETD_OBJS+=	tcpclient.o rawhandler.o wshandler.o
-endif
+		mcast.o global.o rad50.o node.o timesensitive.o tcpclient.o \
+		rawhandler.o wshandler.o
 
 VALIDATOR=	validator
 VALIDATOR_OBJS=	regression.o global.o rad50.o
@@ -87,11 +82,7 @@ CFLAGS+=	-DKEEP_ALIVE
 endif
 
 CXXFLAGS+=	${CFLAGS}
-
-ifdef TCP_CLIENTS
-CXXFLAGS+=	-DTCP_CLIENTS
-LDFLAGS=-lcrypto
-endif
+LDFLAGS=	-lcrypto
 
 ifeq (${THIS_PLATFORM}, SunOS)
 LDFLAGS+= 	-lresolv -lsocket -lnsl
