@@ -54,13 +54,19 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
 {
     int res = -1;
 
+    // If a virtual node is not specified, then use the node that was
+    // provided on the -t command line option
+
+    if (cmd->virtualNodeName().isBlank())
+	cmd->setVirtualNodeName(tcpNode);
+
     switch (cmd->cmd()) {
      case CommandList::cmdConnect:
 	{
 	    TcpConnectCommand tmp;
 
 	    tmp.setClientName(cmd->clientName());
-	    tmp.setVirtualNodeName(tcpNode);
+	    tmp.setVirtualNodeName(cmd->virtualNodeName());
 	    tmp.setPid(getpid());
 	    tmp.setDataPort(getSocketPort(sData));
 	    tmp.setRemoteAddr(remoteAddr);
@@ -227,17 +233,23 @@ static ssize_t readHttpLine(int fd, void *buf, size_t n)
     return totRead;
 }
 
-static void sendStr(int s, std::string const& str)
+static void sendStr(int s, const char *d)
 {
-    send(s, str.c_str(), str.size(), 0);
+    send(s, d, strlen(d), 0);
 }
 
-static std::string getAcceptKey(char const* const key)
+static void sendAcceptKey(int sTcp, const char *key)
 {
-    static char const encodingTable[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    static int const modTable[] = {0, 2, 1};
-    static char const magicKey[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    static char encodingTable[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+				    'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+				    'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+				    'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+				    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+				    'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+				    'w', 'x', 'y', 'z', '0', '1', '2', '3',
+				    '4', '5', '6', '7', '8', '9', '+', '/'};
+    static int modTable[] = {0, 2, 1};
+    const char *magicKey = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     SHA_CTX ctx;
     unsigned char md[SHA_DIGEST_LENGTH];
 
@@ -246,27 +258,26 @@ static std::string getAcceptKey(char const* const key)
     SHA1_Update(&ctx, magicKey, strlen(magicKey));
     SHA1_Final(md, &ctx);
 
-    std::string acceptKey;
+    char acceptKey[4 * ((SHA_DIGEST_LENGTH + 2) / 3)];
 
-    acceptKey.reserve(4 * ((SHA_DIGEST_LENGTH + 2) / 3));
+    for (size_t ii = 0, jj = 0; ii < SHA_DIGEST_LENGTH;) {
 
-    for (size_t ii = 0; ii < SHA_DIGEST_LENGTH;) {
-        uint32_t const octet_a = ii < SHA_DIGEST_LENGTH ? md[ii++] : 0;
-        uint32_t const octet_b = ii < SHA_DIGEST_LENGTH ? md[ii++] : 0;
-        uint32_t const octet_c = ii < SHA_DIGEST_LENGTH ? md[ii++] : 0;
+        uint32_t octet_a = ii < SHA_DIGEST_LENGTH ? md[ii++] : 0;
+        uint32_t octet_b = ii < SHA_DIGEST_LENGTH ? md[ii++] : 0;
+        uint32_t octet_c = ii < SHA_DIGEST_LENGTH ? md[ii++] : 0;
 
         uint32_t triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
 
-        acceptKey += encodingTable[(triple >> 3 * 6) & 0x3F];
-        acceptKey += encodingTable[(triple >> 2 * 6) & 0x3F];
-        acceptKey += encodingTable[(triple >> 1 * 6) & 0x3F];
-        acceptKey += encodingTable[(triple >> 0 * 6) & 0x3F];
+        acceptKey[jj++] = encodingTable[(triple >> 3 * 6) & 0x3F];
+        acceptKey[jj++] = encodingTable[(triple >> 2 * 6) & 0x3F];
+        acceptKey[jj++] = encodingTable[(triple >> 1 * 6) & 0x3F];
+        acceptKey[jj++] = encodingTable[(triple >> 0 * 6) & 0x3F];
     }
 
     for (int ii = 0; ii < modTable[SHA_DIGEST_LENGTH % 3]; ii++)
-        acceptKey += '=';
+        acceptKey[sizeof(acceptKey) - 1 - ii] = '=';
 
-    return acceptKey;
+    send(sTcp, acceptKey, sizeof(acceptKey), 0);
 }
 
 static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodename_t tcpNode, ipaddr_t remoteAddr)
@@ -277,35 +288,30 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
 
     syslog(LOG_DEBUG, "handshake");
 
-    std::string response;
-
     // Handshake continues until we get a blank line
 
     while ((len = readHttpLine(sTcp, line, sizeof(line))) > 0) {
 	char *cp;
 
 	if (strcmp("RAW", line) == 0) {
-	    handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode,
-					     remoteAddr);
+	    handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
 	    syslog(LOG_DEBUG, "detected Raw protocol");
 	} else if (!handler && (cp = strchr(line, ' '))) {
 	    *cp++ = 0;
 	    if (strcmp("Sec-WebSocket-Key:", line) == 0) {
-		static const std::string header =
-		    "HTTP/1.1 101 Switching Protocols\r\n"
-		    "Upgrade: websocket\r\n"
-		    "Connection: Upgrade\r\n"
-		    "Sec-WebSocket-Accept: ";
-
-		response += header + getAcceptKey(cp) + "\r\n";
-		handler = new WebSocketProtocolHandler(sTcp, sCmd, sData,
-						       tcpNode, remoteAddr);
+		sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
+		sendStr(sTcp, "Upgrade: websocket\r\n");
+		sendStr(sTcp, "Connection: Upgrade\r\n");
+		sendStr(sTcp, "Sec-WebSocket-Accept: ");
+		sendAcceptKey(sTcp, cp);
+		sendStr(sTcp, "\r\n");
+		sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
+		handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
 		syslog(LOG_DEBUG, "detected WebSocket protocol");
-	    } else if (strcmp("Sec-WebSocket-Protocol:", line) == 0)
-		response += "Sec-WebSocket-Protocol: acnet-client\r\n";
+	    }
 	}
     }
-    sendStr(sTcp, response += "\r\n");
+
     return handler;
 }
 
