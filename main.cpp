@@ -44,10 +44,8 @@ uint16_t acnetPort = ACNET_PORT;
 // Local variables...
 
 static TaskPoolMap taskPoolMap;
-#ifdef TCP_CLIENTS
 static int sClientTcp = -1;
 static nodename_t tcpNodeName;
-#endif
 
 #ifndef NO_REPORT
 static bool sendReport = false;
@@ -135,7 +133,6 @@ struct CmdLineArgs {
 			done = true;
 			break;
 
-#ifdef TCP_CLIENTS
 		     case 't':
 			tcpClients = true;
 			if (!*curPtr) {
@@ -162,7 +159,6 @@ struct CmdLineArgs {
 			getTaskRejectList(curPtr);
 			done = true;
 			break;
-#endif
 
 		     case 'h':
 		     case '?':
@@ -186,10 +182,8 @@ struct CmdLineArgs {
 	       "   -h            display help\n"
 	       "   -s            stand-alone mode -- don't try to download\n"
 	       "                 ACNET node tables\n"
-#ifdef TCP_CLIENTS
 	       "   -t name       allow TCP client connections on host name\n"
 	       "   -r list       comma seperated list of task handles to reject on TCP connections\n"
-#endif
 	       "   -H name       sets the ACNET host name of this node\n"
 	       "   -n TRUNKNODE  sets the current trunk and node to the\n"
 	       "                 specified four hex digits\n"
@@ -300,14 +294,12 @@ static bool getResources()
 	if (-1 != (sClient = allocSocket(PLATFORM_INADDR, ACNET_CLIENT_PORT, 128 * 1024, 128 * 1024))) {
 	    setMyIp();
 
-#ifdef TCP_CLIENTS
 	    if (cmdLineArgs.tcpClients) {
 		if (-1 != (sClientTcp = allocClientTcpSocket(INADDR_ANY, ACNET_CLIENT_PORT, 128 * 1024, 128 * 1024)))
 		    syslog(LOG_NOTICE, "TCP client interface enabled");
 		else
 		    syslog(LOG_ERR, "unable to allocate client TCP socket -- %m");
 	    }
-#endif
 
 	    return true;
 	}
@@ -1119,12 +1111,10 @@ static void releaseResources()
 	close(sClient);
 	sClient = -1;
     }
-#ifdef TCP_CLIENTS
     if (-1 != sClientTcp) {
 	close(sClientTcp);
 	sClientTcp = -1;
     }
-#endif
     networkTerm();
 }
 
@@ -1244,7 +1234,6 @@ void generateReport()
 }
 #endif
 
-#ifdef TCP_CLIENTS
 extern void handleTcpClient(int, nodename_t);
 
 pid_t handleClientTcpConnect()
@@ -1269,7 +1258,6 @@ pid_t handleClientTcpConnect()
 
     return -1;
 }
-#endif
 
 int main(int argc, char** argv)
 {
@@ -1312,9 +1300,7 @@ int main(int argc, char** argv)
 	    pollfd pfd[] = {
 		{ sNetwork, POLLIN, 0 },
 		{ sClient, POLLIN, 0 },
-#ifdef TCP_CLIENTS
 		{ sClientTcp, POLLIN, 0 },
-#endif
 	    };
 
 	    getCurrentTime();
@@ -1388,11 +1374,7 @@ int main(int argc, char** argv)
 
 		getCurrentTime();
 
-		while ((pfd[0].revents | pfd[1].revents
-#ifdef TCP_CLIENTS
-			| pfd[2].revents
-#endif
-			) & POLLIN) {
+		while ((pfd[0].revents | pfd[1].revents | pfd[2].revents) & POLLIN) {
 		    // Check to see if there are any client commands sent to
 		    // us.
 
@@ -1413,12 +1395,10 @@ int main(int argc, char** argv)
 			} else
 			    pfd[0].revents &= ~POLLIN;
 		    }
-#ifdef TCP_CLIENTS
 		    if (!termSignal && (pfd[2].revents & POLLIN) != 0) {
 			handleClientTcpConnect();
 			pfd[2].revents &= ~POLLIN;
 		    }
-#endif
 		}
 	    }
 	    syslog(LOG_WARNING, "process was asked to terminate");

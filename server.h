@@ -10,7 +10,9 @@
 #include <netinet/udp.h>
 #include <cassert>
 #include <string>
+#include <cstring>
 #include <limits>
+#include <queue>
 #include <set>
 #include <map>
 #include <vector>
@@ -307,6 +309,33 @@ struct NodeStats {
 
 std::string rtos(nodename_t);
 
+typedef std::queue<void*> BufferQueue;
+
+template <class T>
+class QueueAdaptor : protected BufferQueue {
+ public:
+    bool empty() const { return BufferQueue::empty(); }
+    size_type size() const { return BufferQueue::size(); }
+
+    T* peek() { return empty() ? 0 : reinterpret_cast<T*>(front()); }
+    T* current() { return empty() ? 0 : reinterpret_cast<T*>(back()); }
+
+    T* pop()
+    {
+	if (!empty()) {
+	    T* const ptr = reinterpret_cast<T*>(front());
+
+	    BufferQueue::pop();
+	    return ptr;
+	}
+	return 0;
+    }
+
+    void push(T* ptr)
+    {
+	BufferQueue::push(ptr);
+    }
+};
 
 // Acnet header macros
 
@@ -1313,6 +1342,7 @@ class AcnetTask : public InternalTask {
     void taskIdHandler(rpyid_t, uint16_t const* const, uint16_t);
     void taskNameHandler(rpyid_t, uint8_t);
     void taskNameHandler(rpyid_t, uint16_t const* const, uint16_t);
+    void taskIpHandler(rpyid_t, uint16_t const* const, uint16_t);
     void killerMessageHandler(rpyid_t, uint8_t, uint16_t const* const, uint16_t);
     void tasksHandler(rpyid_t, uint8_t);
     void pingHandler(rpyid_t);
@@ -1408,8 +1438,68 @@ struct pollfd;
 #define ACNETD_ACK	(2)
 #define ACNETD_DATA	(3)
 
+#define SOCKET_BUFSIZE		(128 * 1024)
+#define MAX_SOCKET_QUESIZE	((500 * 1024 * 1024) / SOCKET_BUFSIZE)
+
+class SocketBuffer {
+    size_t _length;
+    size_t _remaining;
+    uint8_t _buffer[SOCKET_BUFSIZE];
+
+  public:
+    SocketBuffer(const void *buf, const size_t len)
+    {
+	this->_remaining = len;
+	this->_length = len;
+	memcpy(this->_buffer, buf, len);
+    }
+
+    const void *data()
+    {
+	return _buffer + (_length - _remaining);
+    }
+
+    size_t remaining()
+    {
+	return _remaining;
+    }
+
+    SocketBuffer *append(const void *buf, const size_t len)
+    {
+	const size_t free = sizeof(_buffer) - _length;
+
+	if (free >= len) {
+	    memcpy(_buffer + _length, buf, len);
+	    _length += len;
+	    _remaining += len;
+	    return 0;
+	} else {
+	    memcpy(_buffer + _length, buf, free);
+	    _length += free;
+	    _remaining += free;
+	    return new SocketBuffer(((uint8_t *) buf) + free, len - free);
+	}
+    }
+
+    void consume(const size_t len)
+    {
+	assert(_remaining >= len);
+	_remaining -= len;
+    }
+
+    bool empty()
+    {
+	return _remaining == 0;
+    }
+};
+
+typedef QueueAdaptor< SocketBuffer > SocketQueue;
+
 class TcpClientProtocolHandler : private Noncopyable
 {
+    SocketQueue socketQ;
+    size_t maxSocketQSize;
+
     int getSocketPort(int);
 
  public:
@@ -1426,6 +1516,7 @@ class TcpClientProtocolHandler : private Noncopyable
     bool handleClientCommand(CommandHeader *, size_t);
 
     virtual bool handleCommandSocket() =  0;
+    bool send(const void *, const size_t);
 
  public:
     TcpClientProtocolHandler(int, int, int, nodename_t, ipaddr_t);
@@ -1433,6 +1524,11 @@ class TcpClientProtocolHandler : private Noncopyable
 
     Traffic whichTraffic() const { return enabledTraffic; }
 
+    ipaddr_t remoteAddress() const { return remoteAddr; }
+    size_t maxQueueSize() const { return maxSocketQSize; }
+    size_t queueSize() const { return socketQ.size(); }
+    bool anyPendingPackets() { return !socketQ.empty(); }
+    bool sendPendingPackets();
     virtual bool handleClientSocket() =  0;
     virtual bool handleDataSocket() =  0;
     virtual bool handleClientPing() =  0;

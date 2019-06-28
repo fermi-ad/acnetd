@@ -107,8 +107,8 @@ bool WebSocketProtocolHandler::sendBinaryDataToClient(Pkt2 *pkt2, ssize_t len, u
 	pkt1->len = len + sizeof(pkt1->type);
 	pkt1->type = htons(type);
 
-	if (send(sTcp, pkt1, len + sizeof(Pkt1), 0) == -1) {
-	    syslog(LOG_ERR, "wshandler: error sending binary data to client -- %m");
+	if (!send(pkt1, len + sizeof(Pkt1))) {
+	    syslog(LOG_ERR, "ws: error sending binary data to client -- %m");
 	    done = true;
 	}
     } else {
@@ -120,8 +120,8 @@ bool WebSocketProtocolHandler::sendBinaryDataToClient(Pkt2 *pkt2, ssize_t len, u
 	pkt2->len = htons(len + sizeof(pkt2->type));
 	pkt2->type = htons(type);
 
-	if (send(sTcp, pkt2, len + sizeof(Pkt2), 0) == -1) {
-	    syslog(LOG_ERR, "wshandler: error sending binary data to client -- %m");
+	if (!send(pkt2, len + sizeof(Pkt2))) {
+	    syslog(LOG_ERR, "ws: error sending binary data to client -- %m");
 	    done = true;
 	}
     }
@@ -138,7 +138,7 @@ bool WebSocketProtocolHandler::handleDataSocket()
     ssize_t const len = recv(sData, pkt2->data, sizeof(buf) - sizeof(Pkt2), 0);
 
     if (len < 0) {
-	syslog(LOG_ERR, "tcpclient: error receiving data -- %m");
+	syslog(LOG_ERR, "error receiving data -- %m");
 	done = true;
     } else
 	done = sendBinaryDataToClient(pkt2, len, ACNETD_DATA);
@@ -208,8 +208,8 @@ bool WebSocketProtocolHandler::handleClientSocket()
 		     case 0x8:
 			{
 			    uint8_t msg[] = { 0x88, (uint8_t) payload.size() };
-			    send(sTcp, msg, sizeof(msg), 0);
-			    send(sTcp, payload.data(), payload.size(), 0);
+			    send(msg, sizeof(msg));
+			    send(payload.data(), payload.size());
 			    done = true;
 			}
 			break;
@@ -217,8 +217,8 @@ bool WebSocketProtocolHandler::handleClientSocket()
 		     case 0x9:
 			{
 			    uint8_t pong[] = { 0x8a, (uint8_t) payload.size() };
-			    send(sTcp, pong, sizeof(pong), 0);
-			    send(sTcp, payload.data(), payload.size(), 0);
+			    send(pong, sizeof(pong));
+			    send(payload.data(), payload.size());
 			}
 			break;
 
@@ -247,7 +247,7 @@ bool WebSocketProtocolHandler::handleCommandSocket()
     ssize_t const len = recv(sCmd, pkt2->data, sizeof(buf) - sizeof(Pkt2), 0);
 
     if (len < 0) {
-	syslog(LOG_ERR, "tcpclient: error receiving command ack -- %m");
+	syslog(LOG_ERR, "error receiving command ack -- %m");
 	done = true;
     } else
 	done = sendBinaryDataToClient(pkt2, len, ACNETD_ACK);
@@ -259,8 +259,8 @@ bool WebSocketProtocolHandler::handleClientPing()
 {
     uint8_t ping[] = { 0x89, 0x00 };
 
-    if (send(sTcp, ping, sizeof(ping), 0) == -1) {
-	syslog(LOG_ERR, "wshandler: error sending ping to client -- %m");
+    if (!send(ping, sizeof(ping))) {
+	syslog(LOG_ERR, "ws: error sending ping to client -- %m");
 	return true;
     }
 
@@ -271,7 +271,7 @@ void WebSocketProtocolHandler::handleShutdown()
 {
     uint8_t msg[] = { 0x88, 0x00 };
 
-    if (send(sTcp, msg, sizeof(msg), 0) == -1)
-	syslog(LOG_ERR, "wshandler: error sending close to client -- %m");
+    if (!send(msg, sizeof(msg)))
+	syslog(LOG_ERR, "ws: error sending close to client -- %m");
 }
 

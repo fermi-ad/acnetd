@@ -46,12 +46,12 @@ bool RawProtocolHandler::handleDataSocket()
     // Test for errors and correct length.
 
     if (len < 0) {
-	syslog(LOG_ERR, "tcpclient: error receiving data from acnetd -- %m");
+	syslog(LOG_ERR, "error receiving data from acnetd -- %m");
 	done = true;
     } else {
 	data.hdr.size = htonl(len + sizeof(data.hdr.type));
-	if (send(sTcp, &data, len + sizeof(data.hdr), 0) == -1) {
-	    syslog(LOG_ERR, "tcpclient: error sending data to client -- %m");
+	if (!send(&data, len + sizeof(data.hdr))) {
+	    syslog(LOG_ERR, "error sending data to client -- %m");
 	    done = true;
 	}
     }
@@ -81,15 +81,15 @@ bool RawProtocolHandler::handleClientSocket()
 		if (ntohs(buf.hdr.type) == ACNETD_COMMAND && len >= sizeof(CommandHeader))
 		    done = handleClientCommand((CommandHeader *) buf.data, len);
 		else {
-		    syslog(LOG_ERR, "tcpclient: invalid command/size from client");
+		    syslog(LOG_ERR, "invalid command/size from client");
 		    done = true;
 		}
 	    } else {
-		syslog(LOG_INFO, "tcpclient: unable to read %d bytes from client", buf.hdr.size);
+		syslog(LOG_INFO, "unable to read %d bytes from client", buf.hdr.size);
 		done = true;
 	    }
 	} else {
-	    syslog(LOG_ERR, "tcpclient: invalid packet size %d from client", buf.hdr.size);
+	    syslog(LOG_ERR, "invalid packet size %d from client", buf.hdr.size);
 	    //done = true;
 	}
     } else
@@ -107,12 +107,12 @@ bool RawProtocolHandler::handleCommandSocket()
     // Test for errors and correct length.
 
     if (len < 0) {
-	syslog(LOG_ERR, "tcpclient: error receiving command ack -- %m");
+	syslog(LOG_ERR, "error receiving command ack -- %m");
 	done = true;
     } else {
 	ack.hdr.size = htonl(len + sizeof(ack.hdr.type));
-	if (send(sTcp, &ack, len + sizeof(ack.hdr), 0) == -1) {
-	    syslog(LOG_ERR, "tcpclient: error sending command ack -- %m");
+	if (!send(&ack, len + sizeof(ack.hdr))) {
+	    syslog(LOG_ERR, "error sending command ack -- %m");
 	    done = true;
 	}
     }
@@ -125,8 +125,8 @@ bool RawProtocolHandler::handleClientPing()
     TcpHeader<TCP_CLIENT_PING> png;
 
     png.size = htonl(sizeof(png.type));
-    if (send(sTcp, &png, sizeof(png), 0) == -1) {
-	syslog(LOG_ERR, "tcpclient: error pinging client -- %m");
+    if (!send(&png, sizeof(png))) {
+	syslog(LOG_ERR, "error pinging client -- %m");
 	return true;
     }
 
