@@ -2,6 +2,7 @@
 #include "server.h"
 #include <sys/socket.h>
 #include <signal.h>
+#include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -287,19 +288,36 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
 
 	if (strcmp("RAW", line) == 0) {
 	    handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
-	    syslog(LOG_DEBUG, "detected Raw protocol");
-	} else if (!handler && (cp = strchr(line, ' '))) {
+	    syslog(LOG_DEBUG, "detected raw protocol");
+	} else if ((cp = strchr(line, ' '))) {
 	    *cp++ = 0;
-	    if (strcmp("Sec-WebSocket-Key:", line) == 0) {
-		sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
-		sendStr(sTcp, "Upgrade: websocket\r\n");
-		sendStr(sTcp, "Connection: Upgrade\r\n");
-		sendStr(sTcp, "Sec-WebSocket-Accept: ");
-		sendAcceptKey(sTcp, cp);
-		sendStr(sTcp, "\r\n");
-		sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
-		handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
-		syslog(LOG_DEBUG, "detected WebSocket protocol");
+
+	    if (!handler) {
+		if (strcmp("Sec-WebSocket-Key:", line) == 0) {
+		    sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
+		    sendStr(sTcp, "Upgrade: websocket\r\n");
+		    sendStr(sTcp, "Connection: Upgrade\r\n");
+		    sendStr(sTcp, "Sec-WebSocket-Accept: ");
+		    sendAcceptKey(sTcp, cp);
+		    sendStr(sTcp, "\r\n");
+		    sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
+		    handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
+		    syslog(LOG_DEBUG, "detected websocket protocol");
+		}
+	    }
+
+	    // Check for proxied connections and report the forwarded address on the connection
+
+	    if (strcmp("X-Forwarded-For:", line) == 0) {
+		struct in_addr addr;
+
+		if (inet_pton(AF_INET, cp, &addr) == 1) {
+		    remoteAddr = ipaddr_t(ntohl(addr.s_addr));
+		    if (handler)
+			handler->setRemoteAddress(remoteAddr);
+
+		    syslog(LOG_NOTICE, "detected proxy forward address: %s", remoteAddr.str().c_str());
+		}
 	    }
 	}
     }

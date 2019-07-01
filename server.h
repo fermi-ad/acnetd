@@ -1520,6 +1520,7 @@ class TcpClientProtocolHandler : private Noncopyable
     Traffic whichTraffic() const { return enabledTraffic; }
 
     ipaddr_t remoteAddress() const { return remoteAddr; }
+    void setRemoteAddress(ipaddr_t newRemoteAddr) { remoteAddr = newRemoteAddr; }
     size_t maxQueueSize() const { return maxSocketQSize; }
     size_t queueSize() const { return socketQ.size(); }
     bool anyPendingPackets() { return !socketQ.empty(); }
