@@ -9,9 +9,9 @@
 #include <sha.h>
 
 TcpClientProtocolHandler::TcpClientProtocolHandler(int sTcp, int sCmd, int sData,
-						   nodename_t tcpNode, ipaddr_t remoteAddr) :
+						   nodename_t tcpNode) :
     maxSocketQSize(0), sTcp(sTcp), sCmd(sCmd), sData(sData), tcpNode(tcpNode),
-    remoteAddr(remoteAddr), enabledTraffic(AllTraffic)
+	enabledTraffic(AllTraffic)
 {
 }
 
@@ -66,6 +66,21 @@ bool TcpClientProtocolHandler::handleClientCommand(CommandHeader *cmd, size_t le
      case CommandList::cmdTcpConnect:
 	{
 	    TcpConnectCommand tmp;
+
+	    tmp.setClientName(cmd->clientName());
+	    tmp.setVirtualNodeName(cmd->virtualNodeName());
+	    tmp.setPid(getpid());
+	    tmp.setDataPort(getSocketPort(sData));
+	    tmp.setRemoteAddr(remoteAddr);
+
+	    res = ::send(sCmd, &tmp, sizeof(tmp), 0);
+	}
+	break;
+
+     case CommandList::cmdConnectExt:
+     case CommandList::cmdTcpConnectExt:
+	{
+	    TcpConnectCommandExt tmp;
 
 	    tmp.setClientName(cmd->clientName());
 	    tmp.setVirtualNodeName(cmd->virtualNodeName());
@@ -199,7 +214,7 @@ static ssize_t readHttpLine(int fd, void *buf, size_t n)
         numRead = read(fd, &ch, 1);
 
         if (numRead == -1) {
-            if (errno == EINTR)
+            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
                 continue;
             else
                 return -1;
@@ -278,48 +293,50 @@ static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodena
     TcpClientProtocolHandler *handler = 0;
     ssize_t len;
     char line[16 * 1024];
+    pollfd pfd[] = {{ sTcp, POLLIN, 0 }};
 
-    syslog(LOG_DEBUG, "handshake");
+    if (poll(pfd, 1, 100) > 0) {
 
-    // Handshake continues until we get a blank line
+	// Handshake continues until we get a blank line
 
-    while ((len = readHttpLine(sTcp, line, sizeof(line))) > 0) {
-	char *cp;
+	while ((len = readHttpLine(sTcp, line, sizeof(line))) > 0) {
+	    char *cp;
 
-	if (strcmp("RAW", line) == 0) {
-	    handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
-	    syslog(LOG_DEBUG, "detected raw protocol");
-	} else if ((cp = strchr(line, ' '))) {
-	    *cp++ = 0;
+	    if (strcmp("RAW", line) == 0) {
+		handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode);
+		syslog(LOG_NOTICE, "detected raw protocol");
+	    } else if ((cp = strchr(line, ' '))) {
+		*cp++ = 0;
 
-	    if (!handler) {
-		if (strcmp("Sec-WebSocket-Key:", line) == 0) {
-		    sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
-		    sendStr(sTcp, "Upgrade: websocket\r\n");
-		    sendStr(sTcp, "Connection: Upgrade\r\n");
-		    sendStr(sTcp, "Sec-WebSocket-Accept: ");
-		    sendAcceptKey(sTcp, cp);
-		    sendStr(sTcp, "\r\n");
-		    sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
-		    handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr);
-		    syslog(LOG_DEBUG, "detected websocket protocol");
+		if (!handler) {
+		    if (strcasecmp("Sec-WebSocket-Key:", line) == 0) {
+			sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
+			sendStr(sTcp, "Upgrade: websocket\r\n");
+			sendStr(sTcp, "Connection: Upgrade\r\n");
+			sendStr(sTcp, "Sec-WebSocket-Accept: ");
+			sendAcceptKey(sTcp, cp);
+			sendStr(sTcp, "\r\n");
+			sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
+			handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode);
+			syslog(LOG_DEBUG, "detected websocket protocol");
+		    }
 		}
-	    }
 
-	    // Check for proxied connections and report the forwarded address on the connection
+		// Check for proxied connections and report the forwarded address on the connection
 
-	    if (strcmp("X-Forwarded-For:", line) == 0) {
-		struct in_addr addr;
+		if (strcmp("X-Forwarded-For:", line) == 0) {
+		    struct in_addr addr;
 
-		if (inet_pton(AF_INET, cp, &addr) == 1) {
-		    remoteAddr = ipaddr_t(ntohl(addr.s_addr));
-		    if (handler)
-			handler->setRemoteAddress(remoteAddr);
-
-		    syslog(LOG_NOTICE, "detected proxy forward address: %s", remoteAddr.str().c_str());
+		    if (inet_pton(AF_INET, cp, &addr) == 1) {
+			remoteAddr = ipaddr_t(ntohl(addr.s_addr));
+			syslog(LOG_NOTICE, "detected proxy forward address: %s", remoteAddr.str().c_str());
+		    }
 		}
 	    }
 	}
+
+	if (handler)
+	    handler->setRemoteAddress(remoteAddr);
     }
 
     return handler;

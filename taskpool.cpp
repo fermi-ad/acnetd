@@ -31,8 +31,10 @@ TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeNam
 
 taskid_t TaskPool::nextFreeTaskId(ConnectCommand const* const cmd)
 {
-    const uint16_t max = cmd->cmd() == CommandList::cmdConnectExt ? MAX_TASKS : UINT8_MAX;
-    const uint16_t min = cmd->cmd() == CommandList::cmdConnectExt ? 256 : 0;
+    bool ext = (CommandList::cmdConnectExt == cmd->cmd() || CommandList::cmdTcpConnectExt == cmd->cmd());
+
+    const uint16_t max = ext ? MAX_TASKS : 256;
+    const uint16_t min = ext ? 256 : 0;
 
     for (uint16_t ii = min; ii < max; ii++)
 	if (!tasks_[ii])
@@ -232,7 +234,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 
     // Send ack back to the client
 
-    if (cmd->cmd() == CommandList::cmdConnectExt) {
+    if (cmd->cmd() == CommandList::cmdConnectExt || cmd->cmd() == CommandList::cmdTcpConnectExt) {
 	(void) sendto(sClient, &ackExt, sizeof(ackExt), 0, (sockaddr*) &in, sizeof(sockaddr_in));
 	syslog(LOG_WARNING, "send extended connect ack");
     } else

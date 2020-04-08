@@ -51,8 +51,8 @@ inline decode_iterator<_Container> decode_inserter(_Container& __x,
     return decode_iterator<_Container>(__x, __m);
 }
 
-WebSocketProtocolHandler::WebSocketProtocolHandler(int sTcp, int sCmd, int sData, nodename_t tcpNode, ipaddr_t remoteAddr) :
-			    TcpClientProtocolHandler(sTcp, sCmd, sData, tcpNode, remoteAddr),
+WebSocketProtocolHandler::WebSocketProtocolHandler(int sTcp, int sCmd, int sData, nodename_t tcpNode) :
+			    TcpClientProtocolHandler(sTcp, sCmd, sData, tcpNode),
 			    payload(MAX_PAYLOAD_SIZE)
 {
     payload.clear();

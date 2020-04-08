@@ -44,6 +44,7 @@ TaskPoolMap taskPoolMap;
 
 static int sClientTcp = -1;
 static nodename_t tcpNodeName;
+static bool defaultNodeFallback = true;
 
 #ifndef NO_REPORT
 static bool sendReport = false;
@@ -158,6 +159,11 @@ struct CmdLineArgs {
 			done = true;
 			break;
 
+		     case 'f':
+			defaultNodeFallback = false;
+			syslog(LOG_NOTICE, "default node fallback is off");
+			break;
+
 		     case 'h':
 		     case '?':
 			return false;
@@ -185,6 +191,7 @@ struct CmdLineArgs {
 	       "   -H name       sets the ACNET host name of this node\n"
 	       "   -n TRUNKNODE  sets the current trunk and node to the\n"
 	       "                 specified four hex digits\n"
+	       "   -f            turn off default node fallback\n"
 	       "   -a port       use alternate port\n");
     }
 
@@ -816,7 +823,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 
 		    while (ii != taskPoolMap.end())
 			handleAcnetUsm((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->taskExists(hdr.svrTaskName()))
+		} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
 		    handleAcnetUsm(taskPool, hdr);
 		else if ((taskPool = getTaskPool(myNode())))
 		    handleAcnetUsm(taskPool, hdr);
@@ -833,7 +840,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 			handleAcnetCancel((*ii++).second, hdr);
 		} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->rpyPool.rpyInfo(hdr.client(), hdr.msgId()))
 		    handleAcnetCancel(taskPool, hdr);
-		else if (hdr.server() != myNode() && (taskPool = getTaskPool(myNode()))) {
+		else if (defaultNodeFallback && hdr.server() != myNode() && (taskPool = getTaskPool(myNode()))) {
 #ifdef DEBUG
 		    syslog(LOG_NOTICE, "Passing cancel for %04x to the default node %04x", hdr.server().raw(), myNode().raw());
 #endif
@@ -853,7 +860,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 
 		    while (ii != taskPoolMap.end())
 			handleAcnetRequest((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->taskExists(hdr.svrTaskName()))
+		} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
 		    handleAcnetRequest(taskPool, hdr);
 		else if ((taskPool = getTaskPool(myNode())))
 		    handleAcnetRequest(taskPool, hdr);
@@ -966,7 +973,8 @@ static bool handleClientCommand()
 
 		if (!taskPool)
 		    sendClientError(in, ACNET_NO_NODE);
-		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd()) {
+		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd() 
+						|| CommandList::cmdTcpConnectExt == cmdHdr->cmd()) {
 
 		    // Make sure the packet size is correct. (TP-3)
 
