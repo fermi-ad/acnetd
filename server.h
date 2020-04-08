@@ -278,7 +278,7 @@ class StatCounter {
 
     inline operator uint16_t() const
     {
-	return std::min(counter, (uint32_t) std::numeric_limits<uint16_t>::max());
+	return (uint16_t) counter;
     }
 
     inline operator uint32_t() const
@@ -374,8 +374,8 @@ class QueueAdaptor : protected BufferQueue {
 #define	RPY_M_ENDMULT		(0x02)		// terminate multiple reply request
 #define	REQ_M_MULTRPY		(0x01)		// multiple reply request
 
-#define N_REQID			2048
-#define N_RPYID			2048
+#define N_REQID			8192
+#define N_RPYID			8192
 
 // ACNET protocol packet header
 
@@ -479,6 +479,7 @@ enum class CommandList : uint16_t {
 	cmdBlockRequests		= be16(20),
 
 	cmdTcpConnect  			= be16(21),
+	cmdTcpConnectExt		= be16(23),
 
 	cmdDefaultNode 			= be16(22)
 };
@@ -576,6 +577,37 @@ struct TcpConnectCommand : public ConnectCommand {
 } __attribute__((packed));
 
 ASSERT_SIZE(TcpConnectCommand, 20);
+
+// Temporary command until all clients are updated to 16bit taskid
+
+struct TcpConnectCommandExt : public CommandHeaderBase<CommandList::cmdTcpConnectExt> {
+ private:
+    uint32_t pid_;
+    uint16_t dataPort_;
+    uint32_t remoteAddr_;
+
+ public:
+    inline pid_t pid() const { return ntohl(pid_); }
+    inline uint16_t dataPort() const { return ntohs(dataPort_); }
+
+    inline void setPid(pid_t pid)
+    {
+	pid_ = htonl(pid);
+    }
+
+    inline void setDataPort(uint16_t port){
+	dataPort_ = htons(port);
+    }
+
+    inline ipaddr_t remoteAddr() const { return ipaddr_t(ntohl(remoteAddr_)); }
+
+    inline void setRemoteAddr(ipaddr_t remoteAddr)
+    {
+	remoteAddr_ = htonl(remoteAddr.value());
+    }
+} __attribute__((packed));
+
+ASSERT_SIZE(TcpConnectCommandExt, 20);
 
 // Sent by a client periodicly to keep it's Acnet connection.  An
 // AckCommand is sent back to the client.
@@ -870,7 +902,7 @@ ASSERT_SIZE(AckSendRequest, 6);
 
 struct AckSendReply : public AckHeader {
  private:
-    uint16_t flags;
+    uint16_t _flags;
 
  public:
     AckSendReply() : AckHeader(AckList::ackSendReply) { }
@@ -1205,7 +1237,7 @@ class Noncopyable {
 typedef std::set<reqid_t> ReqList;
 typedef std::set<rpyid_t> RpyList;
 
-#define	MAX_TASKS		(1024)
+#define	MAX_TASKS		(N_REQID / 4)
 
 // TaskInfo
 //
@@ -1343,6 +1375,7 @@ class AcnetTask : public InternalTask {
     void taskNameHandler(rpyid_t, uint8_t);
     void taskNameHandler(rpyid_t, uint16_t const* const, uint16_t);
     void taskIpHandler(rpyid_t, uint16_t const* const, uint16_t);
+    void defaultNodeHandler(rpyid_t);
     void killerMessageHandler(rpyid_t, uint8_t, uint16_t const* const, uint16_t);
     void tasksHandler(rpyid_t, uint8_t);
     void pingHandler(rpyid_t);
@@ -1519,12 +1552,13 @@ class TcpClientProtocolHandler : private Noncopyable
     bool send(const void *, const size_t);
 
  public:
-    TcpClientProtocolHandler(int, int, int, nodename_t, ipaddr_t);
+    TcpClientProtocolHandler(int, int, int, nodename_t);
     virtual ~TcpClientProtocolHandler() {}
 
     Traffic whichTraffic() const { return enabledTraffic; }
 
     ipaddr_t remoteAddress() const { return remoteAddr; }
+    void setRemoteAddress(ipaddr_t newRemoteAddr) { remoteAddr = newRemoteAddr; }
     size_t maxQueueSize() const { return maxSocketQSize; }
     size_t queueSize() const { return socketQ.size(); }
     bool anyPendingPackets() { return !socketQ.empty(); }
@@ -1542,7 +1576,7 @@ class RawProtocolHandler : public TcpClientProtocolHandler
     virtual bool handleCommandSocket();
 
  public:
-    RawProtocolHandler(int, int, int, nodename_t, ipaddr_t);
+    RawProtocolHandler(int, int, int, nodename_t);
     virtual ~RawProtocolHandler() {}
 
     virtual bool handleClientSocket();
@@ -1577,7 +1611,7 @@ class WebSocketProtocolHandler : public TcpClientProtocolHandler
     virtual bool handleCommandSocket();
 
  public:
-    WebSocketProtocolHandler(int, int, int, nodename_t, ipaddr_t);
+    WebSocketProtocolHandler(int, int, int, nodename_t);
     virtual ~WebSocketProtocolHandler() {}
 
     virtual bool handleClientSocket();

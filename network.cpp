@@ -167,23 +167,26 @@ int allocClientTcpSocket(uint32_t addr, uint16_t port, int szSnd, int szRcv)
 	    syslog(LOG_WARNING, "couldn't set SO_REUSEPORT for TCP client socket -- %m");
 #endif
 
+	if (-1 != fcntl(tmp, F_SETFL, O_NONBLOCK)) {
 
-	// Bind the socket to the requested port and address.
+	    // Bind the socket to the requested port and address.
 
-	sockaddr_in in;
+	    sockaddr_in in;
 
 #if THIS_TARGET != Linux_Target && THIS_TARGET != SunOS_Target
-	in.sin_len = sizeof(in);
+	    in.sin_len = sizeof(in);
 #endif
-	in.sin_family = AF_INET;
-	in.sin_port = htons(port);
-	in.sin_addr.s_addr = htonl(addr);
+	    in.sin_family = AF_INET;
+	    in.sin_port = htons(port);
+	    in.sin_addr.s_addr = htonl(addr);
 
-	if (-1 != ::bind(tmp, reinterpret_cast<sockaddr*>(&in), sizeof(in))) {
-	    listen(tmp, 5);
-	    return tmp;
+	    if (-1 != ::bind(tmp, reinterpret_cast<sockaddr*>(&in), sizeof(in))) {
+		listen(tmp, 128);
+		return tmp;
+	    } else
+		syslog(LOG_ERR, "couldn't bind() to tcp port %d -- %m", port);
 	} else
-	    syslog(LOG_ERR, "couldn't bind() to tcp port %d -- %m", port);
+	    syslog(LOG_ERR, "couldn't set tcp socket to non-blocking -- %m");
 
 	close(tmp);
     } else

@@ -90,10 +90,11 @@ void AcnetTask::taskIpHandler(rpyid_t id, uint16_t const* const data, uint16_t d
 	    if (RemoteTask const *task = dynamic_cast<RemoteTask const *>(tmp))
 		rpy = htoal(task->getRemoteAddr().value());
 	    else
-		rpy = htonl(INADDR_LOOPBACK);
+		rpy = htoal(myIp().value());
 
 	    sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
-	}
+	} else
+	    sendLastReply(id, ACNET_NOTASK);
     }
 
     sendLastReply(id, ACNET_LEVEL2);
@@ -308,6 +309,13 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 	sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
     } else
 	sendLastReply(id, ACNET_LEVEL2);
+}
+
+void AcnetTask::defaultNodeHandler(rpyid_t id)
+{
+    uint16_t rpy = htoas(myNode().raw());
+    
+    sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
 }
 
 bool AcnetTask::sendMessageToClients(AcnetClientMessage* msg) const
@@ -571,6 +579,10 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 
 	     case 19:
 		taskIpHandler(id, data, dataLen);
+		break;
+
+	     case 20:
+		defaultNodeHandler(id);
 		break;
 
 	     default:
