@@ -131,6 +131,7 @@ inline uint32_t atohl(uint32_t v) throw()
 uint32_t ator(char const *);
 char const* rtoa(uint32_t, char * = 0);
 char const* rtoa_strip(uint32_t, char * = 0);
+int64_t currentTimeMillis();
 
 struct time48_t {
     uint16_t t[3];
@@ -220,17 +221,17 @@ class nodename_t {
 };
 
 class ipaddr_t {
-    uint32_t addr;
+    uint32_t a;
 
     friend std::ostream& operator<<(std::ostream& os, ipaddr_t v);
 
  public:
-    ipaddr_t() : addr(0) {}
-    explicit ipaddr_t(uint32_t const addr) : addr(addr) {}
+    ipaddr_t() : a(0) {}
+    explicit ipaddr_t(uint32_t const addr) : a(addr) {}
 
-    bool isMulticast() const { return IN_MULTICAST(addr); }
-    bool isValid() const { return addr != 0; }
-    uint32_t value() const { return addr; }
+    bool isMulticast() const { return IN_MULTICAST(a); }
+    bool isValid() const { return a != 0; }
+    uint32_t value() const { return a; }
     std::string str() const
     {
 	std::ostringstream os;
@@ -238,9 +239,9 @@ class ipaddr_t {
 	return os.str();
     }
 
-    bool operator< (ipaddr_t const o) const { return addr < o.addr; }
-    bool operator== (ipaddr_t const o) const { return addr == o.addr; }
-    bool operator!= (ipaddr_t const o) const { return addr != o.addr; }
+    bool operator< (ipaddr_t const o) const { return a < o.a; }
+    bool operator== (ipaddr_t const o) const { return a == o.a; }
+    bool operator!= (ipaddr_t const o) const { return a != o.a; }
 };
 
 class StatCounter {
@@ -404,7 +405,7 @@ class AcnetHeader {
     void setStatus(status_t status) { status_ = htoas(status.raw()); }
     void setStatus(rpyid_t rpyId) { status_ = htoas(rpyId.raw()); }
     void setFlags(uint16_t flags) { flags_ = htoas(flags); }
-    void setClient(trunknode_t tn) { cTrunk_ = tn.trunk().raw(); cNode_ = tn.node(); }
+    void setClient(trunknode_t tn) { cTrunk_ = tn.trunk().raw(); cNode_ = tn.node().raw(); }
     bool isEMR();
 } __attribute((packed));
 
@@ -913,7 +914,7 @@ struct AckNameLookup : public AckHeader {
 
  public:
     AckNameLookup() : AckHeader(AckList::ackNameLookup) { }
-    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk().raw(); node = addr.node(); }
+    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk().raw(); node = addr.node().raw(); }
 } __attribute__((packed));
 
 ASSERT_SIZE(AckNameLookup, 6);
@@ -1115,7 +1116,7 @@ class RpyInfo : public TimeSensitive {
     void ackIt()
     {
 #ifdef DEBUG
-	syslog(LOG_INFO, "ACK REQUEST: id = 0x%04x", reqId());
+	syslog(LOG_INFO, "ACK REQUEST: id = 0x%04x", reqId().raw());
 #endif
 	acked = true;
     }

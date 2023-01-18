@@ -261,19 +261,25 @@ void dumpIncomingAcnetPackets(bool const status)
     syslog(LOG_NOTICE, "Dumping incoming ACNET packets: %s", status ? "ON" : "OFF");
 }
 
-static void getCurrentTime()
+int64_t currentTimeMillis()
 {
     struct timeval now;
 
     gettimeofday(&now, 0);
-    currTime = now.tv_sec * 1000LL + now.tv_usec / 1000LL;
+    return now.tv_sec * 1000LL + now.tv_usec / 1000LL;
 }
 
 int64_t now()
 {
     if (!currTime)
-	getCurrentTime();
+	currTime = currentTimeMillis();
+
     return currTime;
+}
+
+static void getCurrentTime()
+{
+    currTime = currentTimeMillis();
 }
 
 // This function tries to get all the resources needed for the ACNET
@@ -296,7 +302,7 @@ static bool getResources()
 #else
 #define	PLATFORM_INADDR	INADDR_LOOPBACK
 #endif
-	if (-1 != (sClient = allocSocket(PLATFORM_INADDR, ACNET_CLIENT_PORT, 128 * 1024, 128 * 1024))) {
+	if (-1 != (sClient = allocSocket(PLATFORM_INADDR, ACNET_CLIENT_PORT, 128 * 1024, 1024 * 1024))) {
 	    setMyIp();
 
 	    if (cmdLineArgs.tcpClients) {
@@ -393,7 +399,7 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	assert(rpy->task().acceptsRequests());
 
 #ifdef DEBUG
-	syslog(LOG_NOTICE, "CANCEL REQUEST: id = 0x%04x", rpy->reqId());
+	syslog(LOG_NOTICE, "CANCEL REQUEST: reqid:0x%04x rpyid:0x%04x", rpy->reqId().raw(), rpy->id().raw());
 #endif
 
 	// NOTICE: Our data passing protocol between acnetd and local
@@ -469,7 +475,7 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 		// remote client.
 
 #ifdef DEBUG
-		syslog(LOG_INFO, "NEW REQUEST: id = 0x%04x", hdr.msgId());
+		syslog(LOG_NOTICE, "NEW REQUEST: id = 0x%04x", hdr.msgId().raw());
 #endif
 		if (task->testPendingRequestsAndIncrement()) {
 		    try {
@@ -706,7 +712,7 @@ static ipaddr_t ipAddress(trunknode_t& tn, ipaddr_t const defAddress, bool tempA
 	else if (!lastNodeTableDownloadTime() && tempAdd) {
 	    updateAddr(tn, nodename_t(-1), defAddress);
 	    syslog(LOG_WARNING, "Temporarily adding %s for node 0x%02x%02x",
-		    defAddress.str().c_str(), tn.trunk().raw(), tn.node());
+		    defAddress.str().c_str(), tn.trunk().raw(), tn.node().raw());
 	    return defAddress;
 	} else
 	    return ipaddr_t();
@@ -737,7 +743,7 @@ static TaskPool* getTaskPool(trunknode_t node)
 
 		if (taskPool) {
 		    taskPoolMap.insert(TaskPoolMap::value_type(name, taskPool));
-		    syslog(LOG_DEBUG, "created TaskPool for node %s", name.str());
+		    syslog(LOG_NOTICE, "created TaskPool for node %s", name.str());
 		    return taskPool;
 		} else
 		    syslog(LOG_ERR, "unable to allocate TaskPool for node %s", name.str());
@@ -785,7 +791,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (!inClient.isValid()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from %s -- bad client node 0x%02x%02x",
-		   ip.str().c_str(), ctn.trunk().raw(), ctn.node());
+		   ip.str().c_str(), ctn.trunk().raw(), ctn.node().raw());
 	return;
     }
 
@@ -795,7 +801,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (inClient.isMulticast() || ip.isMulticast()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from multicast node 0x%02x%02x (ip = %s)",
-			ctn.trunk().raw(), ctn.node(), ip.str().c_str());
+			ctn.trunk().raw(), ctn.node().raw(), ip.str().c_str());
 	return;
     }
 
@@ -807,7 +813,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (!inServer.isValid()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from %s -- bad server node 0x%02x%02x",
-		    ip.str().c_str(), ctn.trunk().raw(), ctn.node());
+		    ip.str().c_str(), ctn.trunk().raw(), ctn.node().raw());
 	return;
     }
 
@@ -1392,9 +1398,18 @@ int main(int argc, char** argv)
 		    // Check to see if there are any client commands sent to
 		    // us.
 
-		    if ((pfd[1].revents & POLLIN) != 0)
-			if (!handleClientCommand())
+		    if ((pfd[1].revents & POLLIN) != 0) {
+			//if (!handleClientCommand())
+			    //pfd[1].revents &= ~POLLIN;
+			
+			unsigned count = 0;
+			while (handleClientCommand())
+			    count++;
+
+			if (!count)
 			    pfd[1].revents &= ~POLLIN;
+		    }
+
 
 		    // Look at network traffic.
 

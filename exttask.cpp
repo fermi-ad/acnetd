@@ -318,7 +318,7 @@ void ExternalTask::handleRequestAck(RequestAckCommand const *cmd)
 	    rep->ackIt();
 	} else {
 #ifdef DEBUG
-	syslog(LOG_INFO, "ACK REQUEST: Reply id = 0x%04x -- ERROR! Client tried to ACK nonexistent request.", cmd->rpyid());
+	    syslog(LOG_INFO, "ACK REQUEST: Reply id = 0x%04x -- ERROR! Client tried to ACK nonexistent request.", cmd->rpyid().raw());
 #endif
 	    ack.setStatus(ACNET_NSR);
 	}

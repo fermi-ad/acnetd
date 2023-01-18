@@ -205,35 +205,30 @@ static int createCommandSocket()
 
 static ssize_t readHttpLine(int fd, void *buf, size_t n)
 {
-    ssize_t numRead;
     size_t totRead = 0;
     char *cp = (char *) buf;
     char ch;
+    int64_t start = currentTimeMillis();
 
-    while (true) {
-        numRead = read(fd, &ch, 1);
+    while (true) { 
+	pollfd pfd[] = {{ fd, POLLIN, 0 }};
 
-        if (numRead == -1) {
-            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-                continue;
-            else
-                return -1;
-        } else if (numRead == 0) {
-            if (totRead == 0)
-                return 0;
-            else
-                break;
-        } else {
-            if (totRead < n - 1) {
+	if (poll(pfd, 1, 50) > 0) {
+	    read(fd, &ch, 1);
+	    if (totRead < n - 1) {
 		if (ch != '\r' && ch != '\n') {
 		    totRead++;
 		    *cp++ = ch;
 		}
-            }
+	    }
 
-            if (ch == '\n')
-                break;
-        }
+	    if (ch == '\n')
+		break;
+	} else
+	    return -1;
+
+	if ((currentTimeMillis() - start) > 200)
+	    return -1;
     }
 
     *cp = 0;
@@ -291,45 +286,52 @@ static void sendAcceptKey(int sTcp, const char *key)
 static TcpClientProtocolHandler *handshake(int sTcp, int sCmd, int sData, nodename_t tcpNode, ipaddr_t remoteAddr)
 {
     TcpClientProtocolHandler *handler = 0;
-    ssize_t len;
-    char line[16 * 1024];
     pollfd pfd[] = {{ sTcp, POLLIN, 0 }};
 
     if (poll(pfd, 1, 100) > 0) {
 
 	// Handshake continues until we get a blank line
 
-	while ((len = readHttpLine(sTcp, line, sizeof(line))) > 0) {
+	while (true) {
 	    char *cp;
+	    char line[16 * 1024];
+	    ssize_t len = readHttpLine(sTcp, line, sizeof(line));
 
-	    if (strcmp("RAW", line) == 0) {
-		handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode);
-		syslog(LOG_NOTICE, "detected raw protocol");
-	    } else if ((cp = strchr(line, ' '))) {
-		*cp++ = 0;
+	    if (len == 0)
+		break;
+	    else if (len == -1) {
+		handler = 0;
+		break;
+	    } else {
+		if (strcmp("RAW", line) == 0) {
+		    handler = new RawProtocolHandler(sTcp, sCmd, sData, tcpNode);
+		    syslog(LOG_NOTICE, "detected raw protocol");
+		} else if ((cp = strchr(line, ' '))) {
+		    *cp++ = 0;
 
-		if (!handler) {
-		    if (strcasecmp("Sec-WebSocket-Key:", line) == 0) {
-			sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
-			sendStr(sTcp, "Upgrade: websocket\r\n");
-			sendStr(sTcp, "Connection: Upgrade\r\n");
-			sendStr(sTcp, "Sec-WebSocket-Accept: ");
-			sendAcceptKey(sTcp, cp);
-			sendStr(sTcp, "\r\n");
-			sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
-			handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode);
-			syslog(LOG_DEBUG, "detected websocket protocol");
+		    if (!handler) {
+			if (strcmp("Sec-WebSocket-Key:", line) == 0) {
+			    sendStr(sTcp, "HTTP/1.1 101 Switching Protocols\r\n");
+			    sendStr(sTcp, "Upgrade: websocket\r\n");
+			    sendStr(sTcp, "Connection: Upgrade\r\n");
+			    sendStr(sTcp, "Sec-WebSocket-Accept: ");
+			    sendAcceptKey(sTcp, cp);
+			    sendStr(sTcp, "\r\n");
+			    sendStr(sTcp, "Sec-WebSocket-Protocol: acnet-client\r\n\r\n");
+			    handler = new WebSocketProtocolHandler(sTcp, sCmd, sData, tcpNode);
+			    syslog(LOG_DEBUG, "detected websocket protocol");
+			}
 		    }
-		}
 
-		// Check for proxied connections and report the forwarded address on the connection
+		    // Check for proxied connections and report the forwarded address on the connection
 
-		if (strcmp("X-Forwarded-For:", line) == 0) {
-		    struct in_addr addr;
+		    if (strcmp("X-Forwarded-For:", line) == 0) {
+			struct in_addr addr;
 
-		    if (inet_pton(AF_INET, cp, &addr) == 1) {
-			remoteAddr = ipaddr_t(ntohl(addr.s_addr));
-			syslog(LOG_NOTICE, "detected proxy forward address: %s", remoteAddr.str().c_str());
+			if (inet_pton(AF_INET, cp, &addr) == 1) {
+			    remoteAddr = ipaddr_t(ntohl(addr.s_addr));
+			    syslog(LOG_NOTICE, "detected proxy forward address: %s", remoteAddr.str().c_str());
+			}
 		    }
 		}
 	    }
@@ -456,6 +458,7 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 	TcpClientProtocolHandler *handler = handshake(sTcp, sCmd, sData, tcpNode, ip);
 
 	if (!handler) {
+	    syslog(LOG_ERR, "closing on invalid handshake");
 	    close(sTcp);
 	    close(sCmd);
 	    close(sData);
@@ -510,11 +513,6 @@ void handleTcpClient(int sTcp, nodename_t tcpNode)
 		    else
 			done = handler->handleClientPing();
 		}
-	    }
-
-	    if (handler->queueSize() > MAX_SOCKET_QUESIZE) {
-		syslog(LOG_ERR, "disconnecting slow client from host %s", handler->remoteAddress().str().c_str());
-		done = true;
 	    }
 	}
 

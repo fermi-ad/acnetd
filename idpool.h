@@ -8,12 +8,12 @@
 // Template to create pool of objects referenced by id. The size of the pool needs to be a power
 // of two.
 
-template<class T, class R, size_t size,
-	 bool = (size > 0 && (((~size + 1) & size) ^ size) == 0) >
+template<class T, class R, size_t SIZE,
+	 bool = (SIZE > 0 && (((~SIZE + 1) & SIZE) ^ SIZE) == 0) >
 class IdPool {
 
     class CircBuf {
-	size_t item[size];
+	size_t item[SIZE];
 	size_t nItems, head;
 
      public:
@@ -23,8 +23,8 @@ class IdPool {
 
 	void push(size_t id)
 	{
-	    assert(nItems < size);
-	    item[(head + nItems++) % size] = id;
+	    assert(nItems < SIZE);
+	    item[(head + nItems++) % SIZE] = id;
 	}
 
 	size_t pop()
@@ -32,7 +32,7 @@ class IdPool {
 	    assert(nItems > 0);
 	    size_t const tmp = item[head];
 
-	    head = (head + 1) % size;
+	    head = (head + 1) % SIZE;
 	    nItems -= 1;
 	    return tmp;
 	}
@@ -40,12 +40,12 @@ class IdPool {
 
     const uint16_t bank;
 
-    T pool[size];
+    T pool[SIZE];
     CircBuf freeList;
     size_t maxActiveIdCount_;
 
  protected:
-    std::bitset<size> inUse;
+    std::bitset<SIZE> inUse;
 
     IdPool(IdPool const&);
     IdPool& operator=(IdPool const&);
@@ -61,7 +61,7 @@ class IdPool {
     {
 	// Initially add all ids to the free list
 
-	for (size_t ii = 0; ii < size; ii++)
+	for (size_t ii = 0; ii < SIZE; ii++)
 	    freeList.push(ii);
     }
 
@@ -78,7 +78,7 @@ class IdPool {
 	    assert(begin() + (entry - begin()) == entry);
 	}
 #endif
-	for (size_t index = entry ? (entry - begin()) + 1 : 0; index < size; ++index)
+	for (size_t index = entry ? (entry - begin()) + 1 : 0; index < SIZE; ++index)
 	    if (inUse.test(index))
 		return const_cast<T*>(begin() + index);
 	return 0;
@@ -128,7 +128,7 @@ class IdPool {
     {
 	uint16_t const ii = idToIndex(id);
 
-	assert(ii < size);
+	assert(ii < SIZE);
 	return (ii | bank) == id.raw() && inUse.test(ii) ? begin() + ii : 0;
     }
 
@@ -151,7 +151,7 @@ class IdPool {
 
     size_t activeIdCount() const
     {
-	return size - freeList.total();
+	return SIZE - freeList.total();
     }
 
     size_t maxActiveIdCount() const
@@ -162,17 +162,17 @@ class IdPool {
  private:
     inline static uint16_t idToIndex(R const id)
     {
-	return id.raw() & (size - 1);
+	return id.raw() & (SIZE - 1);
     }
 
     static uint16_t bankGen()
     {
-      return (uint16_t) ((random() & ~(size - 1)) | size);
+      return (uint16_t) ((random() & ~(SIZE - 1)) | SIZE);
     }
 };
 
-template<class T, class R, size_t size>
-class IdPool<T, R, size, false>;
+template<class T, class R, size_t SIZE>
+class IdPool<T, R, SIZE, false>;
 
 #endif
 

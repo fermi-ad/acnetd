@@ -15,15 +15,24 @@ bool RpyInfo::xmitReply(status_t status, void const* const data,
 {
     bool repDone = false;
 
-    // If the request wasn't ACKed yet, then the client's ACK didn't happen.
-    // Log a message so we can keep track.
-
-    if (!beenAcked())
-	syslog(LOG_WARNING, "implicitly decremented the pending count for "
-				"REPLY 0x%04x", id().raw());
-
     AcnetHeader hdr(ACNET_FLG_RPY, status, lclNode(), remNode(), taskName(), taskId(),
 		    reqId(), sizeof(AcnetHeader) + MSG_LENGTH(n));
+
+    // If the request wasn't ACKed yet, then the client's ACK didn't happen.
+    // Go ahead and ack it here since we're sending a reply.
+
+    if (!beenAcked()) {
+	ackIt();
+	task().decrementPendingRequests();
+
+	char tname[128];
+
+	syslog(LOG_WARNING, "un-acked request id:0x%04x rpyid:0x%04x task:%s remNode:0x%04x lclNode:0x%05x flags:0x%04x mcast:%s rpylen:%d emr:%s",
+						reqId_.raw(), id().raw(), taskName_.str(tname), remNode_.raw(), lclNode_.raw(), 
+						flags, (mcast ? "y" : "n"), (int) n, (emr ? "y" : "n"));
+	
+	dumpPacket("Outgoing", hdr, data, hdr.msgLen());
+    }
 
     // We handle the response differently based upon whether the reply is a
     // one-shot or multiple.
@@ -137,9 +146,9 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 		    update(rpy);
 #ifdef DEBUG
 		syslog(LOG_DEBUG, "Created new rep (id = 0x%04x) for task "
-		       "'%s' ... requestor is task %d on trunk %x, node %d "
-		       "-- %d active reply structures", rpy->id(), rpy->taskName().str(),
-		       rpy->taskId(), rpy->remNode().trunk(), rpy->remNode().node(),
+		       "'%s' ... requestor is task %d on trunk 0x%04x, node 0x%04x "
+		       "-- %d active reply structures", rpy->id().raw(), rpy->taskName().str(),
+		       rpy->taskId().raw(), rpy->remNode().trunk().raw(), rpy->remNode().node().raw(),
 		       (int) idPool.activeIdCount());
 #endif
 	    }
@@ -237,7 +246,7 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id.raw(), rpy->task().id().raw());
 
 #ifdef DEBUG
-	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.", rpy->reqId());
+	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.", rpy->reqId().raw());
 #endif
 
 	if (status != ACNET_SUCCESS) {
@@ -362,7 +371,7 @@ bool ReplyPool::fillReplyDetail(rpyid_t id, rpyDetail* const buf)
     RpyInfo const* const rpy = idPool.entry(id);
 
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "reply detail: looking up 0x%04x", atohs(id));
+    syslog(LOG_DEBUG, "reply detail: looking up 0x%04x", atohs(id.raw()));
 #endif
 
     if (rpy) {

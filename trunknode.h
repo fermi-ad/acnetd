@@ -19,7 +19,7 @@ class node_t {
     size_t n_;
 
  public:
-    explicit node_t(size_t n) : n_(n) { assert(t < 256); }
+    explicit node_t(size_t n) : n_(n) { assert(n < 256); }
     template <class T> node_t(T) = delete;
     bool operator< (node_t const o) const { return n_ < o.n_; }
     bool operator== (node_t const o) const { return n_ == o.n_; }
@@ -43,7 +43,7 @@ class trunknode_t {
 
     bool isBlank() const { return tn == 0; }
     trunk_t trunk() const { return trunk_t(tn >> 8); }
-    uint8_t node() const { return uint8_t(tn); }
+    node_t node() const { return node_t(tn & 0xff); }
     uint16_t raw() const { return tn; }
 };
 

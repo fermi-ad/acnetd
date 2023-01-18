@@ -3,7 +3,7 @@
 
 RemoteTask::RemoteTask(TaskPool& taskPool, taskhandle_t handle, taskid_t id, pid_t pid,
 			    uint16_t cmdPort, uint16_t dataPort, ipaddr_t remoteAddr) :
-    ExternalTask(taskPool, handle, id, pid, cmdPort, dataPort),  remoteAddr(remoteAddr)
+    ExternalTask(taskPool, handle, id, pid, cmdPort, dataPort), receiving(false), remoteAddr(remoteAddr)
 {
 }
 
@@ -16,6 +16,28 @@ bool RemoteTask::rejectTask(taskhandle_t task)
     }
 
     return false;
+}
+
+void RemoteTask::handleReceiveRequests()
+{
+    receiving = true;
+
+    Ack ack;
+
+    if (!sendAckToClient(&ack, sizeof(ack)))
+	taskPool().removeTask(this);
+}
+
+void RemoteTask::handleBlockRequests()
+{
+    receiving = false;
+
+    while (!replies.empty())
+	taskPool().rpyPool.endRpyId(*replies.begin(), ACNET_DISCONNECTED);
+
+    Ack ack;
+    if (!sendAckToClient(&ack, sizeof(ack)))
+	taskPool().removeTask(this);
 }
 
 void RemoteTask::handleSend(SendCommand const *cmd, size_t const len)
