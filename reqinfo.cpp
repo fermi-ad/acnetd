@@ -30,7 +30,11 @@ ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
     if (task->addRequest(idPool.id(req)))
 	update(req);
     else {
-	free(req);
+	idPool.release(req);
+//	free(req);	// JD:  Both I and the compiler think this is iffy.
+			// These items look like they are allocated out of
+			// arrays, not off the heap.  This path has possibly
+			// never been executed.
 	throw std::logic_error("owning task already has this request ID");
     }
 

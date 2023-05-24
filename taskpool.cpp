@@ -197,7 +197,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 
 		    if (len == sizeof(TcpConnectCommand))
 			task = new RemoteTask(*this, clientName, taskId, cmd->pid(), cmdPort, dataPort,
-						((TcpConnectCommand const* const) cmd)->remoteAddr());
+						((TcpConnectCommand const*) cmd)->remoteAddr());
 		    else
 			task = new LocalTask(*this, clientName, taskId, cmd->pid(), cmdPort, dataPort);
 		}
@@ -246,6 +246,9 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
     switch (subType) {
      case 0:
 	removeInactiveTasks();
+#if (__GNUC__ >= 11)
+	[[fallthrough]];
+#endif
      case 2:
 	{
 	    size_t const count = activeCount();
