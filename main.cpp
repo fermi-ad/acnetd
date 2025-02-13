@@ -571,8 +571,8 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 //    C D   0      0      0      0
 //    C!D   0      1      0      0
 //
-//   Which yields     !A!C!D + !ABC!D
-//                    !A!D(!C + BC)
+//   Which yields     !A!C!D + !AB!D
+//                    !A!D(!C + B)
 //
 // The third table determines whether we need to adjust the header because
 // we sent a multicasted request for multiple request and this response has
