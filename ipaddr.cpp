@@ -75,6 +75,8 @@ void generateKillerMessages()
     assert(myIp_.isValid());
     uint32_t const addr = htonl(myIp_.value());
 
+    syslog(LOG_WARNING, "Sending killer messages for node %s", myHostName_.str());
+
     for (size_t trunk = 0; trunk < sizeof(addrMap) / sizeof(*addrMap); ++trunk)
 	if (addrMap[trunk])
 	    for (size_t node = 0; node < 256; ++node) {
@@ -325,6 +327,12 @@ void setLastNodeTableDownloadTime()
     lastNodeTableDownloadTime_ = now();
 }
 
+void setMyIp(ipaddr_t addr)
+{
+    myIp_ = addr;
+    syslog(LOG_WARNING, "Forcing address to %s to align with entry for %s", addr.str().c_str(), myHostName_.str());
+}
+
 // This function is called when acnetd starts up. It does a DNS lookup of its own name to get its IP address. This way, when
 // the IP table gets populated, we can determine our own trunk and node.
 
@@ -417,6 +425,8 @@ void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
 		syslog(LOG_WARNING, "trunk and node, for this machine, was changed from (0x%02x%02x) to (0x%02x%02x)",
 		       myNode_.trunk().raw(), myNode_.node().raw(), tn.trunk().raw(), tn.node().raw());
 	    myNode_ = tn;
+
+	    //syslog(LOG_WARNING, "myNode = (0x%02x%02x)", myNode_.trunk().raw(), myNode_.node().raw());
 	}
     } else if (newName == ILLEGAL_NODE)
 	newName = nodename_t(ator("%%%%%%"));
