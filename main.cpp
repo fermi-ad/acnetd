@@ -331,7 +331,7 @@ void endRpyToNode(trunknode_t const tn)
 	(*ii++).second->rpyPool.endRpyToNode(tn);
 }
 
-static void handleAcnetUsm(TaskPool *taskPool, AcnetHeader const& hdr)
+static void handleAcnetUsm(TaskPool *taskPool, AcnetHeader& hdr)
 {
     // We have a regular USM. We look up the destination task and, if it
     // is listening, deliver the packet to it.
@@ -770,6 +770,23 @@ static TaskPool* getTaskPool(nodename_t name)
     return 0;
 }
 
+static void process_packet(bool mcast, AcnetHeader& hdr,
+			   void (*f)(TaskPool*, AcnetHeader&)) {
+    if (mcast) {
+	auto ii = taskPoolMap.begin();
+
+	while (ii != taskPoolMap.end())
+	    f((*ii++).second, hdr);
+    } else {
+	TaskPool* taskPool = getTaskPool(hdr.server());
+
+	if (taskPool && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
+	    f(taskPool, hdr);
+	else if ((taskPool = getTaskPool(myNode())))
+	    f(taskPool, hdr);
+    }
+}
+
 void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 {
     uint16_t const flags = hdr.flags();
@@ -819,15 +836,15 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 
     switch (pktType) {
      case ACNET_FLG_USM:
-	if (mcast) {
-	    auto ii = taskPoolMap.begin();
+	process_packet(mcast, hdr, handleAcnetUsm);
+	break;
 
-	    while (ii != taskPoolMap.end())
-		handleAcnetUsm((*ii++).second, hdr);
-	} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
-	    handleAcnetUsm(taskPool, hdr);
-	else if ((taskPool = getTaskPool(myNode())))
-	    handleAcnetUsm(taskPool, hdr);
+     case ACNET_FLG_REQ:
+     case ACNET_FLG_REQ | ACNET_FLG_MLT:
+	if (!lastNodeTableDownloadTime())
+	    handleNodeTableDownloadRequest(hdr);
+	else
+	    process_packet(mcast, hdr, handleAcnetRequest);
 	break;
 
      case ACNET_FLG_CAN:
@@ -844,21 +861,6 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 #endif
 	    handleAcnetCancel(taskPool, hdr);
 	}
-	break;
-
-     case ACNET_FLG_REQ:
-     case ACNET_FLG_REQ | ACNET_FLG_MLT:
-	if (!lastNodeTableDownloadTime())
-	    handleNodeTableDownloadRequest(hdr);
-	else if (mcast) {
-	    auto ii = taskPoolMap.begin();
-
-	    while (ii != taskPoolMap.end())
-		handleAcnetRequest((*ii++).second, hdr);
-	} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
-	    handleAcnetRequest(taskPool, hdr);
-	else if ((taskPool = getTaskPool(myNode())))
-	    handleAcnetRequest(taskPool, hdr);
 	break;
 
      case ACNET_FLG_RPY:
