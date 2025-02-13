@@ -819,72 +819,54 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 
     switch (pktType) {
      case ACNET_FLG_USM:
-	// Removed restriction for Kubernetes use
-	//if (validFromAddress("USM", ctn, inClient, ip))
-	    //if (mcast || validToAddress("USM", ctn, stn)) {
-		if (mcast) {
-		    auto ii = taskPoolMap.begin();
+	if (mcast) {
+	    auto ii = taskPoolMap.begin();
 
-		    while (ii != taskPoolMap.end())
-			handleAcnetUsm((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
-		    handleAcnetUsm(taskPool, hdr);
-		else if ((taskPool = getTaskPool(myNode())))
-		    handleAcnetUsm(taskPool, hdr);
-	    //}
+	    while (ii != taskPoolMap.end())
+		handleAcnetUsm((*ii++).second, hdr);
+	} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
+	    handleAcnetUsm(taskPool, hdr);
+	else if ((taskPool = getTaskPool(myNode())))
+	    handleAcnetUsm(taskPool, hdr);
 	break;
 
      case ACNET_FLG_CAN:
-	// Removed restriction for Kubernetes use
-	//if (validFromAddress("CANCEL", ctn, inClient, ip))
-	    //if (mcast || validToAddress("CANCEL", ctn, stn)) {
-		if (mcast) {
-		    auto ii = taskPoolMap.begin();
+	if (mcast) {
+	    auto ii = taskPoolMap.begin();
 
-		    while (ii != taskPoolMap.end())
-			handleAcnetCancel((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->rpyPool.rpyInfo(hdr.client(), hdr.msgId()))
-		    handleAcnetCancel(taskPool, hdr);
-		else if (defaultNodeFallback && hdr.server() != myNode() && (taskPool = getTaskPool(myNode()))) {
+	    while (ii != taskPoolMap.end())
+		handleAcnetCancel((*ii++).second, hdr);
+	} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->rpyPool.rpyInfo(hdr.client(), hdr.msgId()))
+	    handleAcnetCancel(taskPool, hdr);
+	else if (defaultNodeFallback && hdr.server() != myNode() && (taskPool = getTaskPool(myNode()))) {
 #ifdef DEBUG
-		    syslog(LOG_NOTICE, "Passing cancel for %04x to the default node %04x", hdr.server().raw(), myNode().raw());
+	    syslog(LOG_NOTICE, "Passing cancel for %04x to the default node %04x", hdr.server().raw(), myNode().raw());
 #endif
-		    handleAcnetCancel(taskPool, hdr);
-		}
-	    //}
+	    handleAcnetCancel(taskPool, hdr);
+	}
 	break;
 
      case ACNET_FLG_REQ:
      case ACNET_FLG_REQ | ACNET_FLG_MLT:
 	if (!lastNodeTableDownloadTime())
 	    handleNodeTableDownloadRequest(hdr);
-	else {
-	// Removed restriction for Kubernetes use
-	//else if (validFromAddress("REQUEST", ctn, inClient, ip))
-	    //if (mcast || validToAddress("REQUEST", ctn, stn)) {
-		if (mcast) {
-		    auto ii = taskPoolMap.begin();
+	else if (mcast) {
+	    auto ii = taskPoolMap.begin();
 
-		    while (ii != taskPoolMap.end())
-			handleAcnetRequest((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
-		    handleAcnetRequest(taskPool, hdr);
-		else if ((taskPool = getTaskPool(myNode())))
-		    handleAcnetRequest(taskPool, hdr);
-	    //}
-	}
+	    while (ii != taskPoolMap.end())
+		handleAcnetRequest((*ii++).second, hdr);
+	} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
+	    handleAcnetRequest(taskPool, hdr);
+	else if ((taskPool = getTaskPool(myNode())))
+	    handleAcnetRequest(taskPool, hdr);
 	break;
 
      case ACNET_FLG_RPY:
      case ACNET_FLG_RPY | ACNET_FLG_MLT:
-	// Removed restriction for Kubernetes use
-	//if (validFromAddress("REPLY", stn, inServer, ip))
-	    //if (validToAddress("REPLY", stn, ctn)) {
-		taskPool = getTaskPool(hdr.client());
+	taskPool = getTaskPool(hdr.client());
 
-		if (taskPool)
-		    handleAcnetReply(taskPool, hdr);
-	    //}
+	if (taskPool)
+	    handleAcnetReply(taskPool, hdr);
 	break;
 
      default:
