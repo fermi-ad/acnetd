@@ -18,7 +18,7 @@ taskhandle_t::taskhandle_t(std::string const& n) : h(ator(n.c_str()))
 
 TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h, taskid_t id) :
     boot(now()), taskPool_(taskPool), handle_(h), id_(id),
-    pendingRequests(0), maxPendingRequests(0)
+    pendingRequests(0), maxPendingRequests(0), printPendingWarning(true)
 {
 }
 
@@ -42,14 +42,18 @@ bool TaskInfo::decrementPendingRequests()
 	return false;
 }
 
-bool TaskInfo::testPendingRequestsAndIncrement()
+void TaskInfo::testPendingRequestsAndIncrement()
 {
     if (pendingRequests < maxPendingRequestsAccepted) {
 	if (needsToBeThrottled() && ++pendingRequests > maxPendingRequests)
 	    maxPendingRequests = pendingRequests;
-	return true;
-    } else
-	return false;
+    } else if (printPendingWarning) {
+
+	// Print a single pending warning for a task
+	
+	printPendingWarning = false;
+	syslog(LOG_WARNING, "Warning: %s has %d pending requests", handle_.str(), pendingRequests);
+    }
 }
 
 #ifndef NO_REPORT
