@@ -1253,6 +1253,7 @@ class TaskInfo : private Noncopyable {
 
     unsigned pendingRequests;
     unsigned maxPendingRequests;
+    bool printPendingWarning;
 
     TaskInfo();
 
@@ -1299,7 +1300,7 @@ class TaskInfo : private Noncopyable {
     bool removeReply(rpyid_t id)		{ return replies.erase(id) != 0; }
     bool removeRequest(reqid_t id)		{ return requests.erase(id) != 0; }
     bool decrementPendingRequests();
-    bool testPendingRequestsAndIncrement();
+    void testPendingRequestsAndIncrement();
 
     // ACNET report
 
@@ -1688,6 +1689,7 @@ bool nameLookup(nodename_t, ipaddr_t&);
 void updateAddr(trunknode_t, nodename_t, ipaddr_t);
 bool addrLookup(ipaddr_t, trunknode_t&);
 void setMyIp();
+void setMyIp(ipaddr_t);
 void setLastNodeTableDownloadTime();
 bool trunkExists(trunk_t);
 

@@ -331,7 +331,7 @@ void endRpyToNode(trunknode_t const tn)
 	(*ii++).second->rpyPool.endRpyToNode(tn);
 }
 
-static void handleAcnetUsm(TaskPool *taskPool, AcnetHeader const& hdr)
+static void handleAcnetUsm(TaskPool *taskPool, AcnetHeader& hdr)
 {
     // We have a regular USM. We look up the destination task and, if it
     // is listening, deliver the packet to it.
@@ -466,45 +466,43 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 
 	    if (task->acceptsRequests()) {
 
-		// Check to see if the client has been slow in handling
-		// requests. If it has been too slow, send an error to the
-		// remote client.
-
 #ifdef DEBUG
 		syslog(LOG_INFO, "NEW REQUEST: id = 0x%04x",
 		       hdr.msgId().raw());
 #endif
-		if (task->testPendingRequestsAndIncrement()) {
-		    try {
-			// At this point, we believe we have a valid ACNET
-			// request. Allocate a Reply structure so the client
-			// can reply.
 
-			RpyInfo const* const rpy = taskPool->rpyPool.alloc(task, hdr.msgId(), hdr.clntTaskId(),
-							       hdr.svrTaskName(), hdr.server(),
-							       hdr.client(), hdr.flags());
+		// Keep track of how many pending requests a task has and
+		// print a message to the log if it's been too slow
 
-			// Send the packet to the client. If the
-			// communications fails, we deallocate the reply.
-			// NOTICE: See the NOTICE section above (in handling
-			// CANCELs) for the reason we stuff the reply ID in
-			// the status field.
+		task->testPendingRequestsAndIncrement();
 
-			hdr.setStatus(rpy->id());
-			if (task->sendDataToClient(&hdr)) {
-			    ++task->stats.reqRcv;
-			    continue;
-			}
-			result = ACNET_BUSY;
-			taskPool->rpyPool.endRpyId(rpy->id(), ACNET_DISCONNECTED);
+		try {
+
+		    // At this point, we believe we have a valid ACNET
+		    // request. Allocate a Reply structure so the client can
+		    // reply.
+
+		    RpyInfo const* const rpy = taskPool->rpyPool.alloc(task, hdr.msgId(), hdr.clntTaskId(),
+								       hdr.svrTaskName(), hdr.server(),
+								       hdr.client(), hdr.flags());
+
+		    // Send the packet to the client. If the communications
+		    // fails, we deallocate the reply. NOTICE: See the NOTICE
+		    // section above (in handling CANCELs) for the reason we
+		    // stuff the reply ID in the status field.
+
+		    hdr.setStatus(rpy->id());
+		    if (task->sendDataToClient(&hdr)) {
+			++task->stats.reqRcv;
+			continue;
 		    }
-		    catch (...) {
-			result = ACNET_NOREMMEM;
-		    }
-		    task->decrementPendingRequests();
-		} else
-		    result = ACNET_FUL;
-
+		    result = ACNET_BUSY;
+		    taskPool->rpyPool.endRpyId(rpy->id(), ACNET_DISCONNECTED);
+		}
+		catch (...) {
+		    result = ACNET_NOREMMEM;
+		}
+		task->decrementPendingRequests();
 	    } else
 		result = ACNET_NCR;
 
@@ -573,8 +571,8 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 //    C D   0      0      0      0
 //    C!D   0      1      0      0
 //
-//   Which yields     !A!C!D + !ABC!D
-//                    !A!D(!C + BC)
+//   Which yields     !A!C!D + !AB!D
+//                    !A!D(!C + B)
 //
 // The third table determines whether we need to adjust the header because
 // we sent a multicasted request for multiple request and this response has
@@ -706,7 +704,7 @@ static ipaddr_t ipAddress(trunknode_t& tn, ipaddr_t const defAddress, bool tempA
 
 	if (in)
 	    return ipaddr_t(ntohl(in->sin_addr.s_addr));
-	else if (!lastNodeTableDownloadTime() && tempAdd) {
+	else if (!lastNodeTableDownloadTime() && !cmdLineArgs.standAlone && tempAdd) {
 	    updateAddr(tn, nodename_t(-1), defAddress);
 	    syslog(LOG_WARNING, "Temporarily adding %s for node 0x%02x%02x",
 		    defAddress.str().c_str(), tn.trunk().raw(), tn.node());
@@ -740,7 +738,7 @@ static TaskPool* getTaskPool(trunknode_t node)
 
 		if (taskPool) {
 		    taskPoolMap.insert(TaskPoolMap::value_type(name, taskPool));
-		    syslog(LOG_DEBUG, "created TaskPool for node %s", name.str());
+		    syslog(LOG_NOTICE, "created TaskPool for node %s(0x%02x%02x)", name.str(), node.trunk().raw(), node.node());
 		    return taskPool;
 		} else
 		    syslog(LOG_ERR, "unable to allocate TaskPool for node %s", name.str());
@@ -772,6 +770,23 @@ static TaskPool* getTaskPool(nodename_t name)
     return 0;
 }
 
+static void process_packet(bool mcast, AcnetHeader& hdr,
+			   void (*f)(TaskPool*, AcnetHeader&)) {
+    if (mcast) {
+	auto ii = taskPoolMap.begin();
+
+	while (ii != taskPoolMap.end())
+	    f((*ii++).second, hdr);
+    } else {
+	TaskPool* taskPool = getTaskPool(hdr.server());
+
+	if (taskPool && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
+	    f(taskPool, hdr);
+	else if ((taskPool = getTaskPool(myNode())))
+	    f(taskPool, hdr);
+    }
+}
+
 void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 {
     uint16_t const flags = hdr.flags();
@@ -779,8 +794,10 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 
     // Dump the contents of the packet to the logger.
 
-    if (dumpIncoming)
+    if (dumpIncoming) {
 	dumpPacket("Incoming", hdr, hdr.msg(), hdr.msgLen());
+	syslog(LOG_WARNING, "Incoming from %s", ip.str().c_str());
+    }
 
     trunknode_t ctn = hdr.client();
     ipaddr_t const inClient = ipAddress(ctn, ip, pktType == ACNET_FLG_REQ);
@@ -819,66 +836,39 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
 
     switch (pktType) {
      case ACNET_FLG_USM:
-	if (validFromAddress("USM", ctn, inClient, ip))
-	    if (mcast || validToAddress("USM", ctn, stn)) {
-		if (mcast) {
-		    auto ii = taskPoolMap.begin();
-
-		    while (ii != taskPoolMap.end())
-			handleAcnetUsm((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
-		    handleAcnetUsm(taskPool, hdr);
-		else if ((taskPool = getTaskPool(myNode())))
-		    handleAcnetUsm(taskPool, hdr);
-	    }
-	break;
-
-     case ACNET_FLG_CAN:
-	if (validFromAddress("CANCEL", ctn, inClient, ip))
-	    if (mcast || validToAddress("CANCEL", ctn, stn)) {
-		if (mcast) {
-		    auto ii = taskPoolMap.begin();
-
-		    while (ii != taskPoolMap.end())
-			handleAcnetCancel((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->rpyPool.rpyInfo(hdr.client(), hdr.msgId()))
-		    handleAcnetCancel(taskPool, hdr);
-		else if (defaultNodeFallback && hdr.server() != myNode() && (taskPool = getTaskPool(myNode()))) {
-#ifdef DEBUG
-		    syslog(LOG_NOTICE, "Passing cancel for %04x to the default node %04x", hdr.server().raw(), myNode().raw());
-#endif
-		    handleAcnetCancel(taskPool, hdr);
-		}
-	    }
+	process_packet(mcast, hdr, handleAcnetUsm);
 	break;
 
      case ACNET_FLG_REQ:
      case ACNET_FLG_REQ | ACNET_FLG_MLT:
 	if (!lastNodeTableDownloadTime())
 	    handleNodeTableDownloadRequest(hdr);
-	else if (validFromAddress("REQUEST", ctn, inClient, ip))
-	    if (mcast || validToAddress("REQUEST", ctn, stn)) {
-		if (mcast) {
-		    auto ii = taskPoolMap.begin();
+	else
+	    process_packet(mcast, hdr, handleAcnetRequest);
+	break;
 
-		    while (ii != taskPoolMap.end())
-			handleAcnetRequest((*ii++).second, hdr);
-		} else if ((taskPool = getTaskPool(hdr.server())) && (taskPool->taskExists(hdr.svrTaskName()) || !defaultNodeFallback))
-		    handleAcnetRequest(taskPool, hdr);
-		else if ((taskPool = getTaskPool(myNode())))
-		    handleAcnetRequest(taskPool, hdr);
-	    }
+     case ACNET_FLG_CAN:
+	if (mcast) {
+	    auto ii = taskPoolMap.begin();
+
+	    while (ii != taskPoolMap.end())
+		handleAcnetCancel((*ii++).second, hdr);
+	} else if ((taskPool = getTaskPool(hdr.server())) && taskPool->rpyPool.rpyInfo(hdr.client(), hdr.msgId()))
+	    handleAcnetCancel(taskPool, hdr);
+	else if (defaultNodeFallback && hdr.server() != myNode() && (taskPool = getTaskPool(myNode()))) {
+#ifdef DEBUG
+	    syslog(LOG_NOTICE, "Passing cancel for %04x to the default node %04x", hdr.server().raw(), myNode().raw());
+#endif
+	    handleAcnetCancel(taskPool, hdr);
+	}
 	break;
 
      case ACNET_FLG_RPY:
      case ACNET_FLG_RPY | ACNET_FLG_MLT:
-	if (validFromAddress("REPLY", stn, inServer, ip))
-	    if (validToAddress("REPLY", stn, ctn)) {
-		taskPool = getTaskPool(hdr.client());
+	taskPool = getTaskPool(hdr.client());
 
-		if (taskPool)
-		    handleAcnetReply(taskPool, hdr);
-	    }
+	if (taskPool)
+	    handleAcnetReply(taskPool, hdr);
 	break;
 
      default:
@@ -962,9 +952,14 @@ static bool handleClientCommand()
 		nodename_t const name = cmd->nodeName();
 		ipaddr_t const addr = cmd->ipAddr();
 
-		if (node.isBlank() && name.isBlank() && addr.value() == 0)
+		if (myHostName() == name)
+		    setMyIp(addr);
+
+		if (node.isBlank() && name.isBlank() && addr.value() == 0) {
+		    if (!lastNodeTableDownloadTime())
+			generateKillerMessages();
 		    setLastNodeTableDownloadTime();
-		else
+		} else
 		    updateAddr(node, name, addr);
 
 		(void) sendto(sClient, &ack, sizeof(ack), 0, (sockaddr*) &in, in_len);
@@ -976,7 +971,7 @@ static bool handleClientCommand()
 
 		if (!taskPool)
 		    sendClientError(in, ACNET_NO_NODE);
-		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd() 
+		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd()
 						|| CommandList::cmdTcpConnectExt == cmdHdr->cmd()) {
 
 		    // Make sure the packet size is correct. (TP-3)
@@ -1193,7 +1188,7 @@ static DeltaTime waitingForNodeTable()
 {
     // Request node table download if still needed
 
-    if (!lastNodeTableDownloadTime()) {
+    if (!lastNodeTableDownloadTime() && !cmdLineArgs.standAlone) {
 	static const DeltaTime tenSec(10000);
 	static AbsTime lastNodeTableDownloadRequestTime =
 	    now() + DeltaTime(-10000);
@@ -1209,12 +1204,14 @@ static DeltaTime waitingForNodeTable()
 	} else
 	    return tenSec - delta;
     } else if (!ourDaemon(1, 0)) {
-	syslog(LOG_INFO, "Received node table"
+	if (lastNodeTableDownloadTime()) {
+	    syslog(LOG_INFO, "Received node table"
 #ifndef NO_DAEMON
 	       " ... now running as background task"
 #endif
 	       ".");
-	generateKillerMessages();
+	    generateKillerMessages();
+	}
 	nodeTableConstraints = normalConditions;
 #if THIS_TARGET == NetBSD_Target
 	if (pidfile("acnetd"))
@@ -1273,7 +1270,7 @@ int main(int argc, char** argv)
 #if THIS_TARGET == Darwin_Target
     openlog("acnetd", LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_LOCAL1);
 #else
-    openlog("acnetd", LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+    openlog("acnetd", LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_LOCAL1);
 #endif
 
     // Register our signal handlers.
@@ -1296,8 +1293,7 @@ int main(int argc, char** argv)
 		ipaddr_t const ip = myIp();
 
 		syslog(LOG_NOTICE, "ACNET (" THIS_PLATFORM "-" THIS_ARCH ") "
-		       "services are now active on host %s:%u",
-		       ip.str().c_str(), acnetPort);
+		       "services are now active on host %s:%u", ip.str().c_str(), acnetPort);
 
 		// Add our node and address if passed on the comand line
 
@@ -1312,6 +1308,7 @@ int main(int argc, char** argv)
 	    };
 
 	    getCurrentTime();
+
 	    if (cmdLineArgs.standAlone)
 		setLastNodeTableDownloadTime();
 
@@ -1322,6 +1319,7 @@ int main(int argc, char** argv)
 #ifndef NO_REPORT
 		if (sendReport) {
 		    sendReport = false;
+		    syslog(LOG_NOTICE, "received a report generation signal");
 		    generateReport();
 		}
 #endif
@@ -1398,7 +1396,8 @@ int main(int argc, char** argv)
 			ssize_t len;
 
 			if ((len = readNextPacket(buf, sizeof(buf), in)) > 0) {
-			    if (in.sin_port == ntohs(acnetPort))
+			    // Removed this restriction for Kubernetes use
+			    //if (in.sin_port == ntohs(acnetPort))
 				handleNetworkDatagram(buf, len, ipaddr_t(ntohl(in.sin_addr.s_addr)));
 			} else
 			    pfd[0].revents &= ~POLLIN;
@@ -1415,11 +1414,12 @@ int main(int argc, char** argv)
 
 	    releaseResources();
 	} else
-	    // Couldn't get network resource so we assume we already running
+	    // Couldn't get network resource so we assume we are already running
 
 	    return 0;
     } else
 	cmdLineArgs.showUsage();
+
     closelog();
     return 1;
 }
