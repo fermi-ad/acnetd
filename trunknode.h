@@ -37,13 +37,18 @@ class trunknode_t {
     trunknode_t(trunknode_t const &obj) : tn(obj.tn) {}
     explicit trunknode_t(uint16_t const addr) : tn(addr) {}
 
+    trunknode_t& operator=(trunknode_t const& that) {
+	this->tn = that.tn;
+	return *this;
+    }
+
     bool operator< (trunknode_t const o) const { return tn < o.tn; }
     bool operator== (trunknode_t const o) const { return tn == o.tn; }
     bool operator!= (trunknode_t const o) const { return tn != o.tn; }
 
     bool isBlank() const { return tn == 0; }
     trunk_t trunk() const { return trunk_t(tn >> 8); }
-    uint8_t node() const { return uint8_t(tn); }
+    node_t node() const { return node_t(tn & 0xff); }
     uint16_t raw() const { return tn; }
 };
 
