@@ -117,7 +117,7 @@ inline uint32_t atohl(uint32_t v) throw()
 // after 15 years, we're just starting to be more formal about
 // releasing new versions.
 
-#define ACNET_INTERNALS	0x0200
+#define ACNET_INTERNALS	0x0103
 
 // Defines the API that local clients use to communicate with ACNET so
 // it's another project-specific version number. For acnetd, this is
@@ -131,6 +131,7 @@ inline uint32_t atohl(uint32_t v) throw()
 uint32_t ator(char const *);
 char const* rtoa(uint32_t, char * = 0);
 char const* rtoa_strip(uint32_t, char * = 0);
+int64_t currentTimeMillis();
 
 struct time48_t {
     uint16_t t[3];
@@ -192,8 +193,6 @@ class taskhandle_t {
  public:
     taskhandle_t() : h(0) {}
     explicit taskhandle_t(uint32_t const handle) : h(handle) {}
-    explicit taskhandle_t(char const*);
-    explicit taskhandle_t(std::string const&);
 
     bool operator< (taskhandle_t const o) const { return h < o.h; }
     bool operator== (taskhandle_t const o) const { return h == o.h; }
@@ -211,8 +210,6 @@ class nodename_t {
     nodename_t() : h(0) {}
     explicit nodename_t(uint32_t const handle) : h(handle) {}
     explicit nodename_t(taskhandle_t const o) : h(o.raw()) {}
-    explicit nodename_t(std::string const&);
-    explicit nodename_t(char const*);
 
     bool operator< (nodename_t const o) const { return h < o.h; }
     bool operator== (nodename_t const o) const { return h == o.h; }
@@ -224,17 +221,17 @@ class nodename_t {
 };
 
 class ipaddr_t {
-    uint32_t addr;
+    uint32_t a;
 
     friend std::ostream& operator<<(std::ostream& os, ipaddr_t v);
 
  public:
-    ipaddr_t() : addr(0) {}
-    explicit ipaddr_t(uint32_t const addr) : addr(addr) {}
+    ipaddr_t() : a(0) {}
+    explicit ipaddr_t(uint32_t const addr) : a(addr) {}
 
-    bool isMulticast() const { return IN_MULTICAST(addr); }
-    bool isValid() const { return addr != 0; }
-    uint32_t value() const { return addr; }
+    bool isMulticast() const { return IN_MULTICAST(a); }
+    bool isValid() const { return a != 0; }
+    uint32_t value() const { return a; }
     std::string str() const
     {
 	std::ostringstream os;
@@ -242,9 +239,9 @@ class ipaddr_t {
 	return os.str();
     }
 
-    bool operator< (ipaddr_t const o) const { return addr < o.addr; }
-    bool operator== (ipaddr_t const o) const { return addr == o.addr; }
-    bool operator!= (ipaddr_t const o) const { return addr != o.addr; }
+    bool operator< (ipaddr_t const o) const { return a < o.a; }
+    bool operator== (ipaddr_t const o) const { return a == o.a; }
+    bool operator!= (ipaddr_t const o) const { return a != o.a; }
 };
 
 class StatCounter {
@@ -408,7 +405,7 @@ class AcnetHeader {
     void setStatus(status_t status) { status_ = htoas(status.raw()); }
     void setStatus(rpyid_t rpyId) { status_ = htoas(rpyId.raw()); }
     void setFlags(uint16_t flags) { flags_ = htoas(flags); }
-    void setClient(trunknode_t tn) { cTrunk_ = tn.trunk().raw(); cNode_ = tn.node(); }
+    void setClient(trunknode_t tn) { cTrunk_ = tn.trunk().raw(); cNode_ = tn.node().raw(); }
     bool isEMR();
 } __attribute((packed));
 
@@ -917,7 +914,7 @@ struct AckNameLookup : public AckHeader {
 
  public:
     AckNameLookup() : AckHeader(AckList::ackNameLookup) { }
-    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk().raw(); node = addr.node(); }
+    void setTrunkNode(trunknode_t addr) { trunk = addr.trunk().raw(); node = addr.node().raw(); }
 } __attribute__((packed));
 
 ASSERT_SIZE(AckNameLookup, 6);
@@ -1022,11 +1019,9 @@ struct AcnetRpyList {
 
 class RequestPool;
 
-extern Node RequestRoot;
-
 // This class encompasses all the information related to request ids.
 
-class ReqInfo : public TimeSensitive<RequestRoot> {
+class ReqInfo : public TimeSensitive {
  friend class IdPool<ReqInfo, reqid_t, N_REQID>;
  friend class RequestPool;
 
@@ -1038,9 +1033,9 @@ class ReqInfo : public TimeSensitive<RequestRoot> {
     trunknode_t lclNode_;
     trunknode_t remNode_;
     uint16_t flags;
-    DeltaTime tmoMs;
+    uint32_t tmoMs;
     bool mcast;
-    AbsTime initTime_;
+    int64_t initTime_;
 
 public:
     mutable StatCounter totalPackets;
@@ -1050,11 +1045,11 @@ public:
     void bumpPktStats() const		{ ++totalPackets; }
     bool wantsMultReplies() const	{ return flags & ACNET_FLG_MLT; }
     bool multicasted() const		{ return mcast; }
-    AbsTime expiration() const		{ return lastUpdate + tmoMs; }
+    int64_t expiration() const		{ return lastUpdate + tmoMs; }
     taskhandle_t taskName() const	{ return taskName_; }
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
-    AbsTime initTime() const		{ return initTime_; }
+    int64_t initTime() const		{ return initTime_; }
 };
 
 class RequestPool {
@@ -1062,21 +1057,21 @@ class RequestPool {
 
  private:
     IdPool<ReqInfo, reqid_t, N_REQID> idPool;
+    Node root;
     void release(ReqInfo *);
 
  public:
-    ReqInfo *alloc(TaskInfo*, taskhandle_t, trunknode_t, trunknode_t, uint16_t,
-		   DeltaTime);
+    ReqInfo *alloc(TaskInfo*, taskhandle_t, trunknode_t, trunknode_t, uint16_t, uint32_t);
 
     bool cancelReqId(reqid_t, bool = true, bool = false);
     void cancelReqToNode(trunknode_t const);
-    DeltaTime sendRequestTimeoutsAndGetNextTimeout();
+    int sendRequestTimeoutsAndGetNextTimeout();
 
     ReqInfo *next(ReqInfo const * const req) const 	{ return idPool.next(req); }
     ReqInfo *entry(reqid_t const id) 			{ return idPool.entry(id); }
 
     ReqInfo *oldest();
-    void update(ReqInfo* req) 				{ req->update(); }
+    void update(ReqInfo* req) 				{ req->update(&root); }
 
     void fillActiveRequests(AcnetReqList&l, uint8_t, uint16_t const*, uint16_t);
     bool fillRequestDetail(reqid_t, reqDetail* const);
@@ -1095,11 +1090,9 @@ struct rpyDetail {
 
 class ReplyPool;
 
-extern Node ReplyRoot;
-
 // This class encompasses all the information related to reply ids.
 
-class RpyInfo : public TimeSensitive<ReplyRoot> {
+class RpyInfo : public TimeSensitive {
  friend class IdPool<RpyInfo, rpyid_t, N_RPYID>;
  friend class ReplyPool;
 
@@ -1114,7 +1107,7 @@ class RpyInfo : public TimeSensitive<ReplyRoot> {
     taskid_t taskId_;
     bool mcast;
     reqid_t reqId_;
-    AbsTime initTime_;
+    int64_t initTime_;
     bool acked;
 
  public:
@@ -1134,13 +1127,13 @@ class RpyInfo : public TimeSensitive<ReplyRoot> {
     bool beenAcked() const		{ return acked; }
     bool isMultReplier() const		{ return flags & ACNET_FLG_MLT; }
     bool multicasted() const		{ return mcast; }
-    AbsTime expiration() const 		{ return lastUpdate + DeltaTime(REPLY_DELAY * 1000); }
+    int64_t expiration() const 		{ return lastUpdate + (REPLY_DELAY * 1000); }
     taskhandle_t taskName() const	{ return taskName_; }
     taskid_t taskId() const		{ return taskId_; }
     trunknode_t lclNode() const		{ return lclNode_; }
     trunknode_t remNode() const		{ return remNode_; }
     reqid_t reqId() const		{ return reqId_; }
-    AbsTime initTime() const		{ return initTime_; }
+    int64_t initTime() const		{ return initTime_; }
 
     bool xmitReply(status_t, void const*, size_t, bool);
 };
@@ -1152,7 +1145,7 @@ class ReplyPool {
     typedef std::map<trunknode_t, unsigned> ActiveTargetMap;
 
     class Pinger {
-	AbsTime expires;
+	int64_t expires;
 	ActiveTargetMap const& map;
 	ActiveTargetMap::const_iterator current;
 
@@ -1186,6 +1179,7 @@ class ReplyPool {
     typedef std::pair<ActiveMap::iterator, ActiveMap::iterator> ActiveRangeIterator;
 
     IdPool<RpyInfo, rpyid_t, N_REQID> idPool;
+    Node root;
 
     ActiveMap activeMap;
 
@@ -1213,10 +1207,10 @@ class ReplyPool {
     status_t sendReplyToNetwork(TaskInfo const*, rpyid_t, status_t, void const*, size_t, bool);
     void endRpyToNode(trunknode_t const);
     void endRpyId(rpyid_t, status_t = ACNET_SUCCESS);
-    DeltaTime sendReplyPendsAndGetNextTimeout();
+    int sendReplyPendsAndGetNextTimeout();
 
     RpyInfo *getOldest();
-    void update(RpyInfo* rpy) 		{ rpy->update(); }
+    void update(RpyInfo* rpy) 		{ rpy->update(&root); }
 
     void fillActiveReplies(AcnetRpyList&, uint8_t, uint16_t const*, uint16_t);
     bool fillReplyDetail(rpyid_t, rpyDetail* const);
@@ -1244,7 +1238,7 @@ typedef std::set<rpyid_t> RpyList;
 // Information related to all connected  tasks.
 
 class TaskInfo : private Noncopyable {
-    const AbsTime boot;
+    const int64_t boot;
     TaskPool& taskPool_;
     taskhandle_t handle_;
     const taskid_t id_;
@@ -1273,13 +1267,13 @@ class TaskInfo : private Noncopyable {
 
     // Informational
 
-    DeltaTime connectedTime() const;
+    int64_t connectedTime() const;
     virtual pid_t pid() const = 0;
     virtual bool acceptsUsm() const = 0;
     virtual bool acceptsRequests() const = 0;
     virtual bool isPromiscuous() const  = 0;
     virtual bool needsToBeThrottled() const = 0;
-    virtual bool stillAlive(DeltaTime = DeltaTime(0)) const = 0;
+    virtual bool stillAlive(int = 0) const = 0;
     virtual bool equals(TaskInfo const* o) const = 0;
     TaskPool& taskPool() const	{ return taskPool_; }
     taskhandle_t handle() const	{ return handle_; }
@@ -1333,7 +1327,7 @@ class InternalTask : public TaskInfo {
     bool acceptsRequests() const { return true; }
     bool needsToBeThrottled() const { return false; }
     void commandReceived() const { }
-    bool stillAlive(DeltaTime) const { return true; }
+    bool stillAlive(int) const { return true; }
 
     bool equals(TaskInfo const*) const;
     bool isPromiscuous() const { return false; }
@@ -1413,7 +1407,7 @@ typedef std::vector<TaskInfo*> TaskList;
 // to become a host for multiple "virtual" acnetd nodes
 //
 class TaskPool : private Noncopyable {
-    AbsTime taskStatTimeBase;
+    int64_t taskStatTimeBase;
     trunknode_t node_;
     nodename_t nodeName_;
     TaskInfo *tasks_[MAX_TASKS];
@@ -1462,6 +1456,8 @@ class TaskPool : private Noncopyable {
     bool rename(TaskInfo *, taskhandle_t);
     bool isPromiscuous(taskhandle_t) const;
 };
+
+typedef std::map<nodename_t, TaskPool *> TaskPoolMap;
 
 extern uint16_t acnetPort;
 class DataOut;
@@ -1628,13 +1624,11 @@ inline ipaddr_t octetsToIp(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
     return ipaddr_t((a << 24) | (b << 16) | (c << 8) | d);
 }
 
-inline void toTime48(DeltaTime const t, time48_t* t48)
+inline void toTime48(int64_t t, time48_t* t48)
 {
-    int64_t ms = t.get_msec();
-
-    t48->t[0] = htoas(uint16_t(ms));
-    t48->t[1] = htoas(uint16_t(ms >> 16));
-    t48->t[2] = htoas(uint16_t(ms >> 32));
+    t48->t[0] = htoas((uint16_t) t);
+    t48->t[1] = htoas((uint16_t) (t >> 16));
+    t48->t[2] = htoas((uint16_t) (t >> 32));
 }
 
 // Prototypes...
@@ -1678,7 +1672,7 @@ bool isMulticastNode(trunknode_t);
 bool isLocal(trunknode_t, uint32_t = 0);
 bool isThisMachine(trunknode_t);
 uint32_t ipAddr(char const[]);
-AbsTime lastNodeTableDownloadTime();
+int64_t lastNodeTableDownloadTime();
 ipaddr_t myIp();
 trunknode_t myNode();
 nodename_t myHostName();
@@ -1691,6 +1685,7 @@ bool addrLookup(ipaddr_t, trunknode_t&);
 void setMyIp();
 void setMyIp(ipaddr_t);
 void setLastNodeTableDownloadTime();
+int64_t lastNodeTableDownloadTime();
 bool trunkExists(trunk_t);
 
 // Multicast connections
@@ -1713,7 +1708,7 @@ extern int sNetwork;
 extern int sClient;
 extern bool dumpIncoming;
 extern bool dumpOutgoing;
-extern AbsTime statTimeBase;
+extern int64_t statTimeBase;
 
 // Local Variables:
 // mode:c++

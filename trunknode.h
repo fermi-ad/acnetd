@@ -35,12 +35,11 @@ class trunknode_t {
     trunknode_t(trunk_t const t, node_t const n) :
 	tn((uint16_t(t.raw()) << 8) | uint16_t(n.raw())) {}
     trunknode_t(trunknode_t const &obj) : tn(obj.tn) {}
-    explicit trunknode_t(uint16_t const addr) : tn(addr) {}
-
-    trunknode_t& operator=(trunknode_t const& that) {
+    trunknode_t& operator=(trunknode_t const& that) {	// Added by JD
 	this->tn = that.tn;
 	return *this;
     }
+    explicit trunknode_t(uint16_t const addr) : tn(addr) {}
 
     bool operator< (trunknode_t const o) const { return tn < o.tn; }
     bool operator== (trunknode_t const o) const { return tn == o.tn; }

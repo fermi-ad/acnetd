@@ -4,11 +4,9 @@
 #endif
 #include "server.h"
 
-Node RequestRoot;
-
 ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
 			    trunknode_t lclNode, trunknode_t remNode,
-			    uint16_t flags, DeltaTime tmo)
+			    uint16_t flags, uint32_t tmo)
 {
     assert(task);
 
@@ -19,8 +17,7 @@ ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
     req->lclNode_ = lclNode;
     req->remNode_ = remNode;
     req->flags = flags;
-    req->tmoMs = std::min(std::max(tmo, DeltaTime(400u)),
-			  DeltaTime(REQUEST_TIMEOUT * 1000u));
+    req->tmoMs = std::min(std::max(tmo, 400u), REQUEST_TIMEOUT * 1000u);
     req->initTime_ = now();
     req->totalPackets.reset();
 
@@ -33,7 +30,11 @@ ReqInfo *RequestPool::alloc(TaskInfo* task, taskhandle_t taskName,
     if (task->addRequest(idPool.id(req)))
 	update(req);
     else {
-	free(req);
+	idPool.release(req);
+//	free(req);	// JD:  Both I and the compiler think this is iffy.
+			// These items look like they are allocated out of
+			// arrays, not off the heap.  This path has possibly
+			// never been executed.
 	throw std::logic_error("owning task already has this request ID");
     }
 
@@ -53,7 +54,9 @@ reqid_t ReqInfo::id() const
 
 ReqInfo* RequestPool::oldest()
 {
-    return dynamic_cast<ReqInfo*>(ReqInfo::first());
+    Node* const tmp = root.next();
+
+    return tmp != &root ? dynamic_cast<ReqInfo*>(tmp) : 0;
 }
 
 void RequestPool::cancelReqToNode(trunknode_t const tn)
@@ -134,12 +137,12 @@ bool RequestPool::cancelReqId(reqid_t id, bool xmt, bool sendLastReply)
     return false;
 }
 
-DeltaTime RequestPool::sendRequestTimeoutsAndGetNextTimeout()
+int RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 {
     ReqInfo* req;
 
     while (0 != (req = oldest())) {
-	AbsTime const expiration = req->expiration();
+	int64_t const expiration = req->expiration();
 
 	if (expiration <= now()) {
 	    const bool mult = req->wantsMultReplies();
@@ -160,14 +163,14 @@ DeltaTime RequestPool::sendRequestTimeoutsAndGetNextTimeout()
 	    if (!mult)
 		cancelReqId(req->id(), true);
 	    else
-		req->update();
+		req->update(&root);
 
 	    if (failed)
 		task.taskPool().removeTask(&task);
 	} else
 	    return expiration - now();
     }
-    return DeltaTime::infinity;
+    return -1;
 }
 
 static bool reqInList(ReqInfo const* const req, uint8_t subType, uint16_t const* data, uint16_t n)
@@ -230,8 +233,8 @@ bool RequestPool::fillRequestDetail(reqid_t id, reqDetail* const buf)
 	buf->remNode = htoas(req->remNode().raw());
 	buf->remName = htoal(req->taskName().raw());
 	buf->lclName = htoal(req->task().handle().raw());
-	buf->initTime = htoal(req->initTime().get_sec());
-	buf->lastUpdate = htoal(req->lastUpdate.get_sec());
+	buf->initTime = htoal(req->initTime() / 1000);
+	buf->lastUpdate = htoal(req->lastUpdate / 1000);
 	return true;
     } else
 	return false;
@@ -278,13 +281,13 @@ void RequestPool::generateReqReport(std::ostream& os)
 	    ")</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
 
-	printElapsedTime(os, (now() - req->initTime()).get_msec());
+	printElapsedTime(os, now() - req->initTime());
 
 	os << " ago.</td></tr>\n";
 
-	if (req->lastUpdate) {
+	if (req->lastUpdate != 0) {
 	    os << "\t\t\t\t<tr class=\"even\"><td class=\"label\">Last reply received</td><td>";
-	    printElapsedTime(os, (now() - req->lastUpdate).get_msec());
+	    printElapsedTime(os, now() - req->lastUpdate);
 	    os << " ago.</td></tr>\n"
 		"<tr><td class=\"label\">Received</td><td>" << (uint32_t) req->totalPackets << " replies.</td></tr>\n";
 	}

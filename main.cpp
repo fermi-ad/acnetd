@@ -18,32 +18,30 @@
 #include <util.h>
 #endif
 
-typedef std::map<nodename_t, TaskPool *> TaskPoolMap;
-
 // Local types...
 
 // Local prototypes...
 
-static DeltaTime errorConditions();
+static int errorConditions();
 static ipaddr_t ipAddress(trunknode_t&, ipaddr_t, bool);
 static bool getResources();
 static bool isPacketSizeValid(size_t, uint16_t, size_t, ipaddr_t);
-static DeltaTime normalConditions();
+static int normalConditions();
 static void releaseResources();
 static void sigHup(int);
 static void sigInt(int);
-static DeltaTime waitingForNodeTable();
+static int waitingForNodeTable();
 
 // Global data...
 
 bool dumpIncoming = false;
-AbsTime statTimeBase = now();
+int64_t statTimeBase = now();
 int sClient = -1;
 uint16_t acnetPort = ACNET_PORT;
+TaskPoolMap taskPoolMap;
 
 // Local variables...
 
-static TaskPoolMap taskPoolMap;
 static int sClientTcp = -1;
 static nodename_t tcpNodeName;
 static bool defaultNodeFallback = true;
@@ -53,8 +51,8 @@ static bool sendReport = false;
 #endif
 bool termSignal = false;
 static bool termApp = false;
-static DeltaTime (*nodeTableConstraints)() = waitingForNodeTable;
-static AbsTime currTime;
+static int (*nodeTableConstraints)() = waitingForNodeTable;
+static int64_t currTime = 0;
 
 struct CmdLineArgs {
     trunknode_t myNode;
@@ -109,7 +107,7 @@ struct CmdLineArgs {
 				return false;
 			    }
 			}
-			setMyHostName(nodename_t(curPtr));
+			setMyHostName(nodename_t(ator(curPtr)));
 			done = true;
 			break;
 
@@ -144,7 +142,7 @@ struct CmdLineArgs {
 				return false;
 			    }
 			}
-			tcpNodeName = nodename_t(curPtr);
+			tcpNodeName = nodename_t(ator(curPtr));
 			done = true;
 			break;
 
@@ -203,7 +201,7 @@ struct CmdLineArgs {
 	std::istringstream is(s);
 
 	while (getline(is, s, ',')) {
-	    taskReject.insert(taskhandle_t(s));
+	    taskReject.insert(taskhandle_t(ator(s.c_str())));
 	    syslog(LOG_NOTICE, "rejecting requests to task '%s'", s.c_str());
 	}
     }
@@ -263,19 +261,25 @@ void dumpIncomingAcnetPackets(bool const status)
     syslog(LOG_NOTICE, "Dumping incoming ACNET packets: %s", status ? "ON" : "OFF");
 }
 
-static void getCurrentTime()
+int64_t currentTimeMillis()
 {
     struct timeval now;
 
     gettimeofday(&now, 0);
-    currTime = AbsTime(now.tv_sec * 1000LL + now.tv_usec / 1000LL);
+    return now.tv_sec * 1000LL + now.tv_usec / 1000LL;
 }
 
-AbsTime now()
+int64_t now()
 {
     if (!currTime)
-	getCurrentTime();
+	currTime = currentTimeMillis();
+
     return currTime;
+}
+
+static void getCurrentTime()
+{
+    currTime = currentTimeMillis();
 }
 
 // This function tries to get all the resources needed for the ACNET
@@ -298,7 +302,7 @@ static bool getResources()
 #else
 #define	PLATFORM_INADDR	INADDR_LOOPBACK
 #endif
-	if (-1 != (sClient = allocSocket(PLATFORM_INADDR, ACNET_CLIENT_PORT, 128 * 1024, 128 * 1024))) {
+	if (-1 != (sClient = allocSocket(PLATFORM_INADDR, ACNET_CLIENT_PORT, 128 * 1024, 1024 * 1024))) {
 	    setMyIp();
 
 	    if (cmdLineArgs.tcpClients) {
@@ -395,7 +399,7 @@ static void handleAcnetCancel(TaskPool *taskPool, AcnetHeader& hdr)
 	assert(rpy->task().acceptsRequests());
 
 #ifdef DEBUG
-	syslog(LOG_NOTICE, "CANCEL REQUEST: id = 0x%04x", rpy->reqId().raw());
+	syslog(LOG_NOTICE, "CANCEL REQUEST: reqid:0x%04x rpyid:0x%04x", rpy->reqId().raw(), rpy->id().raw());
 #endif
 
 	// NOTICE: Our data passing protocol between acnetd and local
@@ -467,29 +471,30 @@ static void handleAcnetRequest(TaskPool *taskPool, AcnetHeader& hdr)
 	    if (task->acceptsRequests()) {
 
 #ifdef DEBUG
-		syslog(LOG_INFO, "NEW REQUEST: id = 0x%04x",
-		       hdr.msgId().raw());
+		syslog(LOG_NOTICE, "NEW REQUEST: id = 0x%04x", hdr.msgId().raw());
 #endif
 
-		// Keep track of how many pending requests a task has and
-		// print a message to the log if it's been too slow
-
+		// Keep track of how many pending requests a task has
+		// and print a message to the log if it's been too slow
+		//
+		
 		task->testPendingRequestsAndIncrement();
 
 		try {
 
 		    // At this point, we believe we have a valid ACNET
-		    // request. Allocate a Reply structure so the client can
-		    // reply.
+		    // request. Allocate a Reply structure so the client
+		    // can reply.
 
 		    RpyInfo const* const rpy = taskPool->rpyPool.alloc(task, hdr.msgId(), hdr.clntTaskId(),
 								       hdr.svrTaskName(), hdr.server(),
 								       hdr.client(), hdr.flags());
 
-		    // Send the packet to the client. If the communications
-		    // fails, we deallocate the reply. NOTICE: See the NOTICE
-		    // section above (in handling CANCELs) for the reason we
-		    // stuff the reply ID in the status field.
+		    // Send the packet to the client. If the
+		    // communications fails, we deallocate the reply.
+		    // NOTICE: See the NOTICE section above (in handling
+		    // CANCELs) for the reason we stuff the reply ID in
+		    // the status field.
 
 		    hdr.setStatus(rpy->id());
 		    if (task->sendDataToClient(&hdr)) {
@@ -613,7 +618,7 @@ static void handleAcnetReply(TaskPool *taskPool, AcnetHeader& hdr)
 	// is still alive.  We throttle it because the call is too expensive
 	// to do on every reply with pid-based contexts.
 
-	if (req->task().stillAlive(DeltaTime(5000))) {
+	if (req->task().stillAlive(5000)) {
 
 	    // Update some bookkeeping; increment packet counters and reset the
 	    // time-out.
@@ -707,7 +712,7 @@ static ipaddr_t ipAddress(trunknode_t& tn, ipaddr_t const defAddress, bool tempA
 	else if (!lastNodeTableDownloadTime() && !cmdLineArgs.standAlone && tempAdd) {
 	    updateAddr(tn, nodename_t(-1), defAddress);
 	    syslog(LOG_WARNING, "Temporarily adding %s for node 0x%02x%02x",
-		    defAddress.str().c_str(), tn.trunk().raw(), tn.node());
+		    defAddress.str().c_str(), tn.trunk().raw(), tn.node().raw());
 	    return defAddress;
 	} else
 	    return ipaddr_t();
@@ -738,7 +743,7 @@ static TaskPool* getTaskPool(trunknode_t node)
 
 		if (taskPool) {
 		    taskPoolMap.insert(TaskPoolMap::value_type(name, taskPool));
-		    syslog(LOG_NOTICE, "created TaskPool for node %s(0x%02x%02x)", name.str(), node.trunk().raw(), node.node());
+		    syslog(LOG_NOTICE, "created TaskPool for node %s(0x%02x%02x)", name.str(), node.trunk().raw(), node.node().raw());
 		    return taskPool;
 		} else
 		    syslog(LOG_ERR, "unable to allocate TaskPool for node %s", name.str());
@@ -805,7 +810,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (!inClient.isValid()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from %s -- bad client node 0x%02x%02x",
-		   ip.str().c_str(), ctn.trunk().raw(), ctn.node());
+		   ip.str().c_str(), ctn.trunk().raw(), ctn.node().raw());
 	return;
     }
 
@@ -815,7 +820,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (inClient.isMulticast() || ip.isMulticast()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from multicast node 0x%02x%02x (ip = %s)",
-			ctn.trunk().raw(), ctn.node(), ip.str().c_str());
+			ctn.trunk().raw(), ctn.node().raw(), ip.str().c_str());
 	return;
     }
 
@@ -827,7 +832,7 @@ void handleAcnetPacket(AcnetHeader& hdr, ipaddr_t const ip)
     if (!inServer.isValid()) {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping packet from %s -- bad server node 0x%02x%02x",
-		    ip.str().c_str(), ctn.trunk().raw(), ctn.node());
+		    ip.str().c_str(), ctn.trunk().raw(), ctn.node().raw());
 	return;
     }
 
@@ -953,7 +958,7 @@ static bool handleClientCommand()
 		ipaddr_t const addr = cmd->ipAddr();
 
 		if (myHostName() == name)
-		    setMyIp(addr);
+		    setMyIp(addr); 
 
 		if (node.isBlank() && name.isBlank() && addr.value() == 0) {
 		    if (!lastNodeTableDownloadTime())
@@ -971,7 +976,7 @@ static bool handleClientCommand()
 
 		if (!taskPool)
 		    sendClientError(in, ACNET_NO_NODE);
-		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd()
+		else if (CommandList::cmdConnect == cmdHdr->cmd() || CommandList::cmdConnectExt == cmdHdr->cmd() 
 						|| CommandList::cmdTcpConnectExt == cmdHdr->cmd()) {
 
 		    // Make sure the packet size is correct. (TP-3)
@@ -1141,19 +1146,19 @@ static void sigInt(int)
     termSignal = true;
 }
 
-// When running under normal conditions, we return an infinite delay, which
-// means we don't want poll() to timeout.
+// When running under normal conditions, we return a delay of -1, which means
+// we don't need poll() to timeout.
 
-static DeltaTime normalConditions()
+static int normalConditions()
 {
-    return DeltaTime::infinity;
+    return 10000;
 }
 
-// In an error condition, we simply return no delay so we can quickly exit.
+// In an error condition, we simply return 0 so we can quickly exit.
 
-static DeltaTime errorConditions()
+static int errorConditions()
 {
-    return DeltaTime::noDelay;
+    return 0;
 }
 
 #if defined(NO_DAEMON)
@@ -1184,25 +1189,28 @@ static int ourDaemon(int, int)
 // When waiting for node tables, we need to return a timeout that wakes us
 // every 10 seconds.
 
-static DeltaTime waitingForNodeTable()
+static int waitingForNodeTable()
 {
+    static int64_t lastNodeTableDownloadRequestTime = now() - 10000;
+
     // Request node table download if still needed
 
     if (!lastNodeTableDownloadTime() && !cmdLineArgs.standAlone) {
-	static const DeltaTime tenSec(10000);
-	static AbsTime lastNodeTableDownloadRequestTime =
-	    now() + DeltaTime(-10000);
+	int const delta = now() - lastNodeTableDownloadRequestTime;
 
-	DeltaTime const delta = now() - lastNodeTableDownloadRequestTime;
+	if (delta >= 10000) {
+	    static bool sent = false;
 
-	if (delta >= tenSec) {
-	    syslog(LOG_INFO, "Requesting node table download");
-	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t("NODES"),
+	    if (!sent) {
+		syslog(LOG_INFO, "Requesting node table download");
+		sent = true;
+	    }
+	    sendUsmToNetwork(ACNET_MULTICAST, taskhandle_t(ator("NODES")),
 			     nodename_t(), AcnetTaskId, 0, 0);
-	    lastNodeTableDownloadRequestTime += tenSec;
-	    return tenSec;
+	    lastNodeTableDownloadRequestTime += 10000;
+	    return 10000;
 	} else
-	    return tenSec - delta;
+	    return (10000 - delta);
     } else if (!ourDaemon(1, 0)) {
 	if (lastNodeTableDownloadTime()) {
 	    syslog(LOG_INFO, "Received node table"
@@ -1217,7 +1225,7 @@ static DeltaTime waitingForNodeTable()
 	if (pidfile("acnetd"))
 	    syslog(LOG_WARNING, "couldn't create PID file -- %m");
 #endif
-	return DeltaTime::infinity;
+	return -1;
     } else {
 	static char const errMsg[] = "Couldn't run in the background! Terminating...";
 
@@ -1225,8 +1233,14 @@ static DeltaTime waitingForNodeTable()
 	fprintf(stderr, "%s\n", errMsg);
 	nodeTableConstraints = errorConditions;
 	termSignal = true;
-	return DeltaTime::noDelay;
+	return 0;
     }
+}
+
+static void updateTimeout(int& pTmo, int const tmo)
+{
+    if (tmo != -1 && (pTmo == -1 || tmo < pTmo))
+	pTmo = tmo;
 }
 
 #ifndef NO_REPORT
@@ -1341,7 +1355,7 @@ int main(int argc, char** argv)
 		// Determine the default poll timeout (based upon whether we
 		// have any pending node table constraints.)
 
-		DeltaTime pollTimeout = nodeTableConstraints();
+		int pollTimeout = nodeTableConstraints();
 
 		// Send ACNET_PENDING status for all active replies that
 		// haven't generated data for a while. Return the number of
@@ -1352,9 +1366,9 @@ int main(int argc, char** argv)
 		while (ii != taskPoolMap.end()) {
 		    TaskPool* taskPool = (*ii++).second;
 
-		    std::min(pollTimeout, taskPool->reqPool.sendRequestTimeoutsAndGetNextTimeout());
+		    updateTimeout(pollTimeout, taskPool->reqPool.sendRequestTimeoutsAndGetNextTimeout());
 #ifdef KEEP_ALIVE
-		    std::min(pollTimeout, taskPool->rpyPool.sendReplyPendsAndGetNextTimeout());
+		    updateTimeout(pollTimeout, taskPool->rpyPool.sendReplyPendsAndGetNextTimeout());
 #endif
 		}
 
@@ -1367,7 +1381,7 @@ int main(int argc, char** argv)
 		// in the network buffers.
 
 		if (!sendPendingPackets())
-		    pollTimeout = DeltaTime(20);
+		    pollTimeout = 20;
 
 		// If we reached this test, then there are no outbound
 		// network packets to be sent. If we need to terminate the
@@ -1376,7 +1390,7 @@ int main(int argc, char** argv)
 		else if (termApp)
 		    break;
 
-		poll(pfd, sizeof(pfd) / sizeof(*pfd), pollTimeout.get_msec());
+		poll(pfd, sizeof(pfd) / sizeof(*pfd), pollTimeout);
 
 		getCurrentTime();
 
@@ -1384,9 +1398,18 @@ int main(int argc, char** argv)
 		    // Check to see if there are any client commands sent to
 		    // us.
 
-		    if ((pfd[1].revents & POLLIN) != 0)
-			if (!handleClientCommand())
+		    if ((pfd[1].revents & POLLIN) != 0) {
+			//if (!handleClientCommand())
+			    //pfd[1].revents &= ~POLLIN;
+			
+			unsigned count = 0;
+			while (handleClientCommand())
+			    count++;
+
+			if (!count)
 			    pfd[1].revents &= ~POLLIN;
+		    }
+
 
 		    // Look at network traffic.
 

@@ -12,7 +12,7 @@ class ExternalTask : public TaskInfo {
     sockaddr_in saCmd, saData;
     int contSocketErrors;
     uint32_t totalSocketErrors;
-    mutable AbsTime lastCommandTime, lastAliveCheckTime;
+    mutable int64_t lastCommandTime, lastAliveCheckTime;
 
     ExternalTask();
 
@@ -48,7 +48,7 @@ class ExternalTask : public TaskInfo {
     ExternalTask(TaskPool&, taskhandle_t, taskid_t, pid_t, uint16_t, uint16_t);
     virtual ~ExternalTask() {}
 
-    bool stillAlive(DeltaTime = DeltaTime(0)) const;
+    bool stillAlive(int = 0) const;
     bool isPromiscuous() const { return false; }
 
     pid_t pid() const { return pid_; }

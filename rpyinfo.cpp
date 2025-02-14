@@ -5,8 +5,6 @@
 #endif
 #include "server.h"
 
-Node ReplyRoot;
-
 rpyid_t RpyInfo::id() const
 {
     return task().taskPool().rpyPool.idPool.id(this);
@@ -17,15 +15,24 @@ bool RpyInfo::xmitReply(status_t status, void const* const data,
 {
     bool repDone = false;
 
-    // If the request wasn't ACKed yet, then the client's ACK didn't happen.
-    // Log a message so we can keep track.
-
-    if (!beenAcked())
-	syslog(LOG_WARNING, "implicitly decremented the pending count for "
-				"REPLY 0x%04x", id().raw());
-
     AcnetHeader hdr(ACNET_FLG_RPY, status, lclNode(), remNode(), taskName(), taskId(),
 		    reqId(), sizeof(AcnetHeader) + MSG_LENGTH(n));
+
+    // If the request wasn't ACKed yet, then the client's ACK didn't happen.
+    // Go ahead and ack it here since we're sending a reply.
+
+    if (!beenAcked()) {
+	ackIt();
+	task().decrementPendingRequests();
+
+	char tname[128];
+
+	syslog(LOG_WARNING, "un-acked request id:0x%04x rpyid:0x%04x task:%s remNode:0x%04x lclNode:0x%05x flags:0x%04x mcast:%s rpylen:%d emr:%s",
+						reqId_.raw(), id().raw(), taskName_.str(tname), remNode_.raw(), lclNode_.raw(), 
+						flags, (mcast ? "y" : "n"), (int) n, (emr ? "y" : "n"));
+	
+	dumpPacket("Outgoing", hdr, data, hdr.msgLen());
+    }
 
     // We handle the response differently based upon whether the reply is a
     // one-shot or multiple.
@@ -61,7 +68,9 @@ bool RpyInfo::xmitReply(status_t status, void const* const data,
 
 RpyInfo* ReplyPool::getOldest()
 {
-    return dynamic_cast<RpyInfo*>(RpyInfo::first());
+    Node* const tmp = root.next();
+
+    return tmp != &root ? dynamic_cast<RpyInfo*>(tmp) : 0;
 }
 
 status_t ReplyPool::sendReplyToNetwork(TaskInfo const* const task,
@@ -137,10 +146,9 @@ RpyInfo* ReplyPool::alloc(TaskInfo* task, reqid_t msgId, taskid_t tId,
 		    update(rpy);
 #ifdef DEBUG
 		syslog(LOG_DEBUG, "Created new rep (id = 0x%04x) for task "
-		       "'%s' ... requestor is task %d on trunk %x, node %d "
-		       "-- %d active reply structures", rpy->id().raw(),
-		       rpy->taskName().str(), rpy->taskId().raw(),
-		       rpy->remNode().trunk().raw(), rpy->remNode().node(),
+		       "'%s' ... requestor is task %d on trunk 0x%04x, node 0x%04x "
+		       "-- %d active reply structures", rpy->id().raw(), rpy->taskName().str(),
+		       rpy->taskId().raw(), rpy->remNode().trunk().raw(), rpy->remNode().node().raw(),
 		       (int) idPool.activeIdCount());
 #endif
 	    }
@@ -238,8 +246,7 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
 	    syslog(LOG_WARNING, "didn't remove RPY ID 0x%04x from task %d", id.raw(), rpy->task().id().raw());
 
 #ifdef DEBUG
-	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.",
-	       rpy->reqId().raw());
+	syslog(LOG_INFO, "END REQUEST: id = 0x%04x -- last reply was sent.", rpy->reqId().raw());
 #endif
 
 	if (status != ACNET_SUCCESS) {
@@ -294,19 +301,19 @@ void ReplyPool::endRpyId(rpyid_t id, status_t status)
     }
 }
 
-DeltaTime ReplyPool::sendReplyPendsAndGetNextTimeout()
+int ReplyPool::sendReplyPendsAndGetNextTimeout()
 {
     RpyInfo* rpy;
 
     while (0 != (rpy = getOldest())) {
-	AbsTime const expiration = rpy->expiration();
+	int64_t const expiration = rpy->expiration();
 
 	if (expiration <= now())
 	    rpy->xmitReply(ACNET_PEND, 0, 0, false);
 	else
 	    return expiration - now();
     }
-    return DeltaTime::infinity;
+    return -1;
 }
 
 static bool rpyInList(RpyInfo const* const rpy, uint8_t subType,
@@ -418,11 +425,11 @@ void ReplyPool::generateRpyReport(std::ostream& os)
 	    (uint32_t) rpy->taskId().raw() << " on node " << remNode << " (" << std::hex << std::setw(4) << std::setfill('0') << rpy->remNode().raw() <<
 	    "), request ID 0x" << std::setw(4) << rpy->reqId().raw() << "</td></tr>\n"
 	    "\t\t\t\t<tr><td class=\"label\">Started</td><td>" << std::setfill(' ') << std::dec;
-	printElapsedTime(os, (now() - rpy->initTime()).get_msec());
+	printElapsedTime(os, now() - rpy->initTime());
 	os << " ago.</td></tr>\n";
 	if (rpy->lastUpdate != 0) {
 	    os << "<tr class=\"even\"><td class=\"label\">Last reply sent</td><td>";
-	    printElapsedTime(os, (now() - rpy->lastUpdate).get_msec());
+	    printElapsedTime(os, now() - rpy->lastUpdate);
 	    os << " ago.</td></tr>\n"
 		"\t\t\t\t<tr><td class=\"label\">Sent</td><td>" << (uint32_t) rpy->totalPackets << " replies.</td></tr>\n";
 	}

@@ -1,18 +1,30 @@
-#include <limits>
+#include <cstdlib>
+#include <cassert>
+#include <cstdint>
 #include "timesensitive.h"
 
-DeltaTime DeltaTime::infinity(std::numeric_limits<int64_t>::max());
 
-DeltaTime DeltaTime::noDelay(0);
-
-// XXX: This operator is still susceptible to overflow problems.
-// Delays used for ACNET communications, however, are in the thousands
-// of milliseconds, so we shouldn't run into overflow issues.
-
-DeltaTime DeltaTime::operator-(DeltaTime const& o) const
+TimeSensitive::TimeSensitive()
 {
-    if (*this != infinity)
-	return DeltaTime(o != infinity ? val - o.val : 0);
-    else
-	return infinity;
+    lastUpdate = 0;
+}
+
+void TimeSensitive::update(Node* const root)
+{
+    detach();
+    lastUpdate = now();
+
+    int64_t const ourExp = expiration();
+    Node* current = root->prev();
+
+    while (current != root) {
+	if (dynamic_cast<TimeSensitive const*>(current)->expiration() <= ourExp)
+	    break;
+
+	current = current->prev();
+    }
+
+    current = current->next();
+
+    insertBefore(current);
 }

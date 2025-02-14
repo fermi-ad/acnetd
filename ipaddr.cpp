@@ -60,12 +60,12 @@ static IpInfo* addrMap[256] = { 0 };
 static trunknode_t myNode_;
 static ipaddr_t myIp_;
 static nodename_t myHostName_;
-static AbsTime lastNodeTableDownloadTime_;
+static int64_t lastNodeTableDownloadTime_ = 0;
 
 std::ostream& operator<<(std::ostream& os, ipaddr_t v)
 {
-    os << (v.addr >> 24) << "." << (int) ((uint8_t) (v.addr >> 16)) << "." <<
-	    (int) ((uint8_t) (v.addr >> 8)) << "." << (int) ((uint8_t) v.addr);
+    os << (v.a >> 24) << "." << (int) ((uint8_t) (v.a >> 16)) << "." <<
+	    (int) ((uint8_t) (v.a >> 8)) << "." << (int) ((uint8_t) v.a);
 
     return os;
 }
@@ -111,7 +111,7 @@ bool addrLookup(ipaddr_t a, trunknode_t& tn)
 static void eraseNode(trunknode_t tn)
 {
     if (addrMap[tn.trunk().raw()])
-	addrMap[tn.trunk().raw()][tn.node()].update(ILLEGAL_NODE, ipaddr_t());
+	addrMap[tn.trunk().raw()][tn.node().raw()].update(ILLEGAL_NODE, ipaddr_t());
 }
 
 // Returns the IpInfo structure associated with the given trunk and node.
@@ -121,7 +121,7 @@ IpInfo* findNodeInfo(trunknode_t tn)
     IpInfo* const ptr = addrMap[tn.trunk().raw()];
 
     if (ptr) {
-	IpInfo* const data = ptr + tn.node();
+	IpInfo* const data = ptr + tn.node().raw();
 
 	if (data->name() != ILLEGAL_NODE)
 	    return data;
@@ -137,7 +137,7 @@ void generateIpReport(std::ostream& os)
     os << "\t\t<div class=\"section\">\n"
 	"\t\t<h1>IP Table Report</h1>\n" << std::setw(0) << std::hex << std::setfill(' ');
 
-    time_t t = (time_t) lastNodeTableDownloadTime().get_sec();
+    time_t t = (time_t) (lastNodeTableDownloadTime() / 1000);
     if (t)
 	os << "\t\t<p>Last node table download: " << ctime(&t) << "<p>";
     else
@@ -192,7 +192,7 @@ ipaddr_t getIpAddr(char const host[])
     return he ? ipaddr_t(ntohl(*(uint32_t*) he->h_addr_list[0])) : ipaddr_t();
 }
 
-AbsTime lastNodeTableDownloadTime()
+int64_t lastNodeTableDownloadTime()
 {
     return lastNodeTableDownloadTime_;
 }
@@ -235,7 +235,7 @@ static void insertNode(trunknode_t tn, nodename_t name, ipaddr_t a)
 
     assert(ptr);
 
-    ptr[tn.node()].update(name, a);
+    ptr[tn.node().raw()].update(name, a);
 }
 
 bool isMulticastHandle(taskhandle_t th)
@@ -364,14 +364,14 @@ void setMyIp()
 
 	// Save the rad50 equivalent of our host name
 
-	myHostName_ = nodename_t(name);
+	myHostName_ = nodename_t(ator(name));
     }
 
     // Add generic multicast to trunk/node table
 
     ipaddr_t mcAddr = octetsToIp(239, 128, 4, 1);
 
-    insertNode(ACNET_MULTICAST, nodename_t("MCAST"), mcAddr);
+    insertNode(ACNET_MULTICAST, nodename_t(ator("MCAST")), mcAddr);
     joinMulticastGroup(sClient, mcAddr);
 }
 
@@ -397,7 +397,7 @@ void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
     // Don't let an application add an entry for the LOCAL address.
 
     if (tn.isBlank()) {
-	syslog(LOG_WARNING, "an attempt was made to set invalid address 0x%02x%02x", tn.trunk().raw(), tn.node());
+	syslog(LOG_WARNING, "an attempt was made to set invalid address 0x%02x%02x", tn.trunk().raw(), tn.node().raw());
 	return;
     }
 
@@ -423,13 +423,13 @@ void updateAddr(trunknode_t tn, nodename_t newName, ipaddr_t newAddr)
 	if (newName == myHostName_) {
 	    if (!myNode_.isBlank() && myNode_ != tn)
 		syslog(LOG_WARNING, "trunk and node, for this machine, was changed from (0x%02x%02x) to (0x%02x%02x)",
-		       myNode_.trunk().raw(), myNode_.node(), tn.trunk().raw(), tn.node());
+		       myNode_.trunk().raw(), myNode_.node().raw(), tn.trunk().raw(), tn.node().raw());
 	    myNode_ = tn;
 
 	    //syslog(LOG_WARNING, "myNode = (0x%02x%02x)", myNode_.trunk().raw(), myNode_.node().raw());
 	}
     } else if (newName == ILLEGAL_NODE)
-	newName = nodename_t("%%%%%%");
+	newName = nodename_t(ator("%%%%%%"));
 
     if (newName.isBlank() && !newAddr.isValid())
 	eraseNode(tn);
@@ -460,7 +460,7 @@ bool validFromAddress(char const proto[], trunknode_t const ctn, ipaddr_t const 
     else {
 	if (dumpIncoming)
 	    syslog(LOG_WARNING, "Dropping %s from %s == %s? -- client masquerading as 0x%02x%02x",
-		    proto, in.str().c_str(), ip.str().c_str(), ctn.trunk().raw(), ctn.node());
+		    proto, in.str().c_str(), ip.str().c_str(), ctn.trunk().raw(), ctn.node().raw());
 	return false;
     }
 }
@@ -471,7 +471,7 @@ bool validToAddress(char const proto[], trunknode_t const src, trunknode_t const
 	return true;
     else {
 	if (dumpIncoming)
-	    syslog(LOG_WARNING, "Dropping %s -- (from 0x%02x%02x) dst node 0x%02x%02x is not this machine)", proto, src.trunk().raw(), src.node(), dst.trunk().raw(), dst.node());
+	    syslog(LOG_WARNING, "Dropping %s -- (from 0x%02x%02x) dst node 0x%02x%02x is not this machine)", proto, src.trunk().raw(), src.node().raw(), dst.trunk().raw(), dst.node().raw());
 	return false;
     }
 }
