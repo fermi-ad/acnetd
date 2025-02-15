@@ -82,7 +82,14 @@ CFLAGS+=	-DKEEP_ALIVE
 endif
 
 CXXFLAGS+=	${CFLAGS} ${APPEND_CFLAGS}
-LDFLAGS=	-lcrypto
+
+# --- Dynamically determine LDFLAGS for OpenSSL using pkg-config ---
+PKCONFIG_OPENSSL_LIBS := $(shell pkg-config --libs openssl 2>/dev/null)
+ifneq ($(strip $(PKCONFIG_OPENSSL_LIBS)),) # Check if pkg-config command succeeded and produced output
+  LDFLAGS = $(PKCONFIG_OPENSSL_LIBS) # Use pkg-config output (path to OpenSSL) if available
+else # pkg-config failed or didn't find openssl
+  LDFLAGS = -lcrypto # Fallback to basic -lcrypto
+endif
 
 ifeq (${THIS_PLATFORM}, SunOS)
 LDFLAGS+= 	-lresolv -lsocket -lnsl
@@ -104,10 +111,10 @@ TAGS : $(wildcard *.cpp) $(wildcard *.h)
 	etags -o $@ $^
 
 ${ACNETD} : ${ACNETD_OBJS}
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LDFLAGS}
 
 ${VALIDATOR} : ${VALIDATOR_OBJS}
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LDFLAGS}
 
 ${ACNETD_OBJS} : server.h node.h trunknode.h timesensitive.h idpool.h
 
