@@ -17,8 +17,7 @@
 
 const taskid_t AcnetTaskId(0);
 
-TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) :
-    node_(node), nodeName_(nodeName)
+TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) : node_(node), nodeName_(nodeName)
 {
     taskStatTimeBase = now();
 
@@ -26,8 +25,8 @@ TaskPool::TaskPool(trunknode_t node, nodename_t nodeName) :
 	tasks_[ii] = 0;
 
     tasks_[AcnetTaskId.raw()] = new AcnetTask(*this, AcnetTaskId);
-    active.insert(TaskHandleMap::value_type(taskhandle_t("ACNET"), tasks_[AcnetTaskId.raw()]));
-    active.insert(TaskHandleMap::value_type(taskhandle_t("ACNAUX"), tasks_[AcnetTaskId.raw()]));
+    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNET")), tasks_[AcnetTaskId.raw()]));
+    active.insert(TaskHandleMap::value_type(taskhandle_t(ator("ACNAUX")), tasks_[AcnetTaskId.raw()]));
 }
 
 taskid_t TaskPool::nextFreeTaskId(ConnectCommand const* const cmd)
@@ -174,7 +173,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 	    if (clientName.isBlank()) {
 		char buf[8];
 		sprintf(buf, "%%%05d", dataPort);
-		clientName = taskhandle_t(buf);
+		clientName = taskhandle_t(ator(buf));
 	    }
 
 	    // Check to see if we are already connected and if we are, just
@@ -198,7 +197,7 @@ void TaskPool::handleConnect(sockaddr_in const& in, ConnectCommand const* const 
 
 		    if (len == sizeof(TcpConnectCommand))
 			task = new RemoteTask(*this, clientName, taskId, cmd->pid(), cmdPort, dataPort,
-						((TcpConnectCommand const* const) cmd)->remoteAddr());
+						((TcpConnectCommand const*) cmd)->remoteAddr());
 		    else
 			task = new LocalTask(*this, clientName, taskId, cmd->pid(), cmdPort, dataPort);
 		}
@@ -247,6 +246,9 @@ size_t TaskPool::fillBufferWithTaskInfo(uint8_t subType, uint16_t rep[])
     switch (subType) {
      case 0:
 	removeInactiveTasks();
+#if (__GNUC__ >= 11)
+	[[fallthrough]];
+#endif
      case 2:
 	{
 	    size_t const count = activeCount();

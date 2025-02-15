@@ -7,12 +7,6 @@
 #endif
 #include "server.h"
 
-taskhandle_t::taskhandle_t(char const* const n) : h(ator(n))
-{}
-
-taskhandle_t::taskhandle_t(std::string const& n) : h(ator(n.c_str()))
-{}
-
 // Creates the object by initializing some default values. Since the default values reflect an unused object, it adds itself
 // to the free list.
 
@@ -22,7 +16,7 @@ TaskInfo::TaskInfo(TaskPool& taskPool, taskhandle_t h, taskid_t id) :
 {
 }
 
-DeltaTime TaskInfo::connectedTime() const
+int64_t TaskInfo::connectedTime() const
 {
     return now() - boot;
 }
@@ -90,7 +84,7 @@ void TaskInfo::report(std::ostream& os) const
 	"\t\t\t<tr class=\"even\"><td class=\"label\">Dropped Packets</td><td>" << (uint32_t) stats.lostPkt << "</td></tr>\n" <<
 	"\t\t\t<tr><td class=\"label\">Connected</td><td>";
 
-    printElapsedTime(os, (now() - boot).get_msec());
+    printElapsedTime(os, now() - boot);
 
     os << "</td></tr>\n";
 

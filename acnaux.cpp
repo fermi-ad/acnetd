@@ -3,11 +3,11 @@
 #include "server.h"
 #include "remtask.h"
 
-static AbsTime bootTime = now();
+static int64_t bootTime = now();
 
 void sendKillerMessage(trunknode_t const addr)
 {
-    static taskhandle_t const task("ACNET");
+    static taskhandle_t const task(ator("ACNET"));
     uint16_t const data[] = { htoas(0x20b), htoas(1), htoas(addr.raw()) };
 
     sendUsmToNetwork(ACNET_MULTICAST, task, nodename_t(), AcnetTaskId,
@@ -15,7 +15,7 @@ void sendKillerMessage(trunknode_t const addr)
 }
 
 AcnetTask::AcnetTask(TaskPool& taskPool, taskid_t id) :
-    InternalTask(taskPool, taskhandle_t("ACNET"), id)
+    InternalTask(taskPool, taskhandle_t(ator("ACNET")), id)
 {
 }
 
@@ -44,6 +44,14 @@ void AcnetTask::packetCountHandler(rpyid_t id)
     sum += taskPool().stats.rpyRcv;
 
     rpy.pktCount = htoal(sum);
+
+    // If the current time is less than the boot time, then the system
+    // administrator has adjusted the system time and we've lost all
+    // information of when we started. If this happens, just set the
+    // boot time to the current time.
+
+    if (now() < bootTime)
+	bootTime = now();
 
     toTime48(now() - bootTime, &rpy.time);
     sendLastReply(id, ACNET_SUCCESS, &rpy, sizeof(rpy));
@@ -294,7 +302,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 {
     if (subType == 1) {
 	uint16_t rpy[8];
-	time_t const tt = (time_t) now().get_sec();
+	time_t const tt = (time_t) (now() / 1000);
 	struct tm* const t = localtime(&tt);
 
 	rpy[0] = htoas(t->tm_year);
@@ -303,7 +311,7 @@ void AcnetTask::timeHandler(rpyid_t id, uint8_t subType)
 	rpy[3] = htoas(t->tm_hour);
 	rpy[4] = htoas(t->tm_min);
 	rpy[5] = htoas(t->tm_sec);
-	rpy[6] = htoas(now().get_sec() * 10);
+	rpy[6] = htoas(now() / 100);
 	rpy[7] = htoas(100);
 
 	sendLastReply(id, ACNET_SUCCESS, rpy, sizeof(rpy));
@@ -465,9 +473,9 @@ void AcnetTask::requestDetail(rpyid_t id, uint16_t const* const data, size_t dat
 void AcnetTask::requestReport(rpyid_t id)
 {
 #ifndef NO_REPORT
-    static AbsTime lastReport;
+    static int64_t lastReport = 0;
 
-    if (DeltaTime(60000) < now() - lastReport) {
+    if (now() - lastReport > 60000) {
 	lastReport = now();
 	generateReport();
 	sendLastReply(id, ACNET_SUCCESS);
@@ -487,7 +495,7 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
     if (PKT_IS_REQUEST(flg) || PKT_IS_USM(flg)) {
 	uint16_t const* const msg = (uint16_t*) hdr->msg();
 	uint16_t const size = hdr->msgLen() - sizeof(AcnetHeader);
-	rpyid_t const id(hdr->status().raw());
+	rpyid_t id = rpyid_t(hdr->status().raw());
 
 	// The data size has to be a multiple of two (historically
 	// the diagnostics assume an array of 16-bit values) and
@@ -496,8 +504,8 @@ bool AcnetTask::sendDataToClient(AcnetHeader const* hdr)
 
 	if (!(size & 1) && size >= 2) {
 	    int8_t const type = (int8_t) atohs(msg[0]) & 0xff;
-	    uint8_t const subType = atohs(msg[0]) >> 8;
-	    size_t const dataLen = (size - 2) / 2;
+	    uint8_t subType = atohs(msg[0]) >> 8;
+	    size_t dataLen = (size - 2) / 2;
 	    uint16_t const* const data = msg + 1;;
 
 	    switch (type) {

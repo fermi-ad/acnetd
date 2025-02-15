@@ -7,8 +7,14 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "server.h"
+#include <algorithm>
 
 // Local types
+//
+static inline uint16_t swap(uint16_t v)
+{
+    return (v >> 8) + (v << 8);
+}
 
 class DataOut {
     trunknode_t tgt;
@@ -26,15 +32,14 @@ class DataOut {
 
 	// When we copy the new data to our outgoing buffer, we need to swap bytes.
 
-	for (size_t ii = 0; ii < end; ii += 2, ptr += 2,
-		 d = (void const*) ((uint8_t const*) d + 2)) {
-	    ptr[0] = ((uint8_t*) d)[1];
-	    ptr[1] = ((uint8_t*) d)[0];
-	}
+	std::transform(reinterpret_cast<uint16_t const*>(d),
+	      reinterpret_cast<uint16_t const*>(d) + end / 2,
+	      reinterpret_cast<uint16_t*>(ptr),
+	      swap);
 
 	if (end != n) {
-	    ptr[0] = 0;
-	    ptr[1] = ((uint8_t*) d)[0];
+	    ptr[end] = 0;
+	    ptr[end + 1] = ((uint8_t *) d)[n - 1]; 
 	    total += n + 1;
 	} else
 	    total += n;
@@ -79,12 +84,6 @@ static DataQueue outgoing;
 // Local prototypes
 
 static DataOut* allocPacket(trunknode_t);
-
-nodename_t::nodename_t(char const* const n) : h(ator(n))
-{}
-
-nodename_t::nodename_t(std::string const& n) : h(ator(n.c_str()))
-{}
 
 // Allocates a new network packet. The new packet is associated with the given target node.
 
@@ -225,11 +224,6 @@ void networkTerm()
 	delete outgoing.pop();
 }
 
-static inline uint16_t swap(uint16_t v)
-{
-    return (v >> 8) + (v << 8);
-}
-
 // Reads the next packet from the given socket.
 
 ssize_t readNextPacket(void* const buffer, size_t const len, sockaddr_in& in)
@@ -360,7 +354,7 @@ bool sendPendingPackets()
 	    AcnetHeader const* const hdr = reinterpret_cast<AcnetHeader const*>(ptr->getPacketData());
 
 	    syslog(LOG_WARNING, "couldn't look up node 0x%02x%02x for sending packet -- discarding (Info => svr: 0x%04x, "
-		   "cln: 0x%04x, tsk: 0x%08x, msgId: 0x%04x)", target.trunk().raw(), target.node(), hdr->server().raw(),
+		   "cln: 0x%04x, tsk: 0x%08x, msgId: 0x%04x)", target.trunk().raw(), target.node().raw(), hdr->server().raw(),
 		   hdr->client().raw(), hdr->svrTaskName().raw(), hdr->msgId().raw());
 	}
 
@@ -404,7 +398,7 @@ void sendUsmToNetwork(trunknode_t tgtNode, taskhandle_t tgtTask, nodename_t from
 	(void) sendDataToNetwork(ah, data, len);
     } else if (dumpOutgoing)
 	syslog(LOG_WARNING, "IP table has no entry for node 0x%02x%02x -- cancelling USM transmission",
-	       tgtNode.trunk().raw(), tgtNode.node());
+	       tgtNode.trunk().raw(), tgtNode.node().raw());
 }
 
 // Local Variables:
