@@ -8,6 +8,26 @@ CVS_TAG_PREFIX="git-hash-"
 
 # --- Script Logic ---
 
+# Function to check if a command is available
+check_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Error: Required command '$1' is not installed or not in PATH."
+    return 1 # Indicate failure
+  fi
+  return 0 # Indicate success
+}
+
+# --- Dependency Check ---
+echo "Checking for required commands..."
+REQUIRED_COMMANDS=("curl" "jq" "patch" "cvs")
+for cmd in "${REQUIRED_COMMANDS[@]}"; do
+  if ! check_command "$cmd"; then
+    echo "Please ensure all required commands are installed before running this script."
+    exit 1
+  fi
+done
+echo "All required commands are present."
+
 # 1. Ensure we are in the CVS working directory
 cd "$CVS_WORKING_DIR" || { echo "Error: Could not change directory to CVS working copy: $CVS_WORKING_DIR"; exit 1; }
 
