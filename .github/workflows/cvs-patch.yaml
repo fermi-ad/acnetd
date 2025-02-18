@@ -1,0 +1,78 @@
+name: Generate CVS Patch Per Commit on Main Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  generate_cvs_patch:
+    runs-on: ubuntu-latest
+    outputs: # Define job outputs
+      patch_file_name: ${{ steps.generate_patch.outputs.patch_file_name }}
+      patch_file_path: ${{ steps.generate_patch.outputs.patch_file_path }}
+      patch_generated: ${{ steps.generate_patch.outputs.patch_generated }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Git identity
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "actions@github.com"
+
+      - name: Generate patch file for latest commit
+        id: generate_patch
+        run: |
+          PATCH_DIR="patches"
+          mkdir -p "$PATCH_DIR"
+          git format-patch --no-stat --no-log -1 -o "$PATCH_DIR" HEAD~1..HEAD
+          PATCH_FILE=$(find "$PATCH_DIR" -type f -name "*.patch")
+          if [[ -z "$PATCH_FILE" ]]; then
+            echo "No patch file generated. (This should not happen on a main push if there's a commit)"
+            echo "::set-output name=patch_file_name::no-patch-generated" # Output 'patch_file_name'
+            echo "::set-output name=patch_file_path::no-patch-path"      # Output 'patch_file_path'
+            echo "::set-output name=patch_generated::false"            # Output 'patch_generated' flag
+          else
+            PATCH_FILE_NAME=$(basename "$PATCH_FILE")
+            echo "Patch file generated: $PATCH_FILE_NAME"
+            echo "::set-output name=patch_file_name::$PATCH_FILE_NAME" # Output 'patch_file_name'
+            echo "::set-output name=patch_file_path::$PATCH_FILE"      # Output 'patch_file_path'
+            echo "::set-output name=patch_generated::true"             # Output 'patch_generated' flag
+          fi
+
+      - name: Create GitHub Release with Patch
+        if: steps.generate_patch.outputs.patch_generated == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: cvs-sync-release
+          name: CVS Sync Patch - Commit ${{ github.sha }}
+          body: |
+            A patch file has been generated for the latest commit pushed to `main`: `${{ github.sha }}`.
+
+            **Instructions to apply this patch to your CVS working copy:**
+
+            1. **Download the attached patch file** (`${{ job.outputs.patch_file_name }}`) from this release.
+            2. **Transfer the patch file** to a machine with access to your CVS pserver and your CVS working copy.
+            3. **Login to the CVS-capable node.**
+            4. **Identify the *next* release to apply:**  Consult your CVS repository for the latest `git-hash-*` tag. The release to apply is the one for the Git commit *after* the commit hash in the latest CVS tag (or the very first release if no `git-hash-*` tags exist yet). **In most cases, you will simply apply the releases in the order they are created.**
+            5. **Navigate to the root directory of your CVS working copy** in the terminal.
+            6. **Apply the patch using the `patch` command:**
+               ```bash
+               patch -p1 < ${{ job.outputs.patch_file_name }}
+               ```
+            7. **Resolve any conflicts** reported by the `patch` command manually in your CVS working copy. Use `cvs update -j <conflicting_revision>` if needed.
+            8. **Build and thoroughly test** the build process in the CVS environment after applying the patch.
+            9. **Commit the changes to CVS:**
+               ```bash
+               cvs commit -m "Sync from Git - Commit ${{ github.sha }}"
+               ```
+            10. **Crucially, create a CVS tag *immediately* after a *successful* CVS commit:**
+                ```bash
+                cvs tag git-hash-${{ github.sha }}
+                ```
+                **Use the Git commit SHA `${{ github.sha }}` from this GitHub Release in the CVS tag name.** This tag is essential for tracking the CVS sync state and identifying the next release to apply.
+
+          files: |
+            ${{ job.outputs.patch_file_path }}
