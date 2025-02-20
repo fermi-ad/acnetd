@@ -24,24 +24,37 @@ jobs:
           git config --local user.name "GitHub Actions"
           git config --local user.email "actions@github.com"
 
-      - name: Generate patch file for latest commit
+      - name: Generate patch file
         id: generate_patch
         run: |
           PATCH_DIR="patches"
           mkdir -p "$PATCH_DIR"
-          git format-patch --no-stat --no-log -1 -o "$PATCH_DIR" HEAD~1..HEAD
-          PATCH_FILE=$(find "$PATCH_DIR" -type f -name "*.patch")
-          if [[ -z "$PATCH_FILE" ]]; then
-            echo "No patch file generated. (This should not happen on a main push if there's a commit)"
-            echo "::set-output name=patch_file_name::no-patch-generated" # Output 'patch_file_name'
-            echo "::set-output name=patch_file_path::no-patch-path"      # Output 'patch_file_path'
-            echo "::set-output name=patch_generated::false"            # Output 'patch_generated' flag
+
+          # Fetch origin/main to ensure merge-base is accurate
+          git fetch origin main:origin/main
+
+          # Check if it's the initial commit (still handle initial commit gracefully)
+          if ! git rev-parse --short HEAD~1 > /dev/null 2>&1; then
+            echo "Initial commit detected. Skipping patch generation for the first commit."
+            echo "::set-output name=patch_file_name::no-patch-generated"
+            echo "::set-output name=patch_file_path::no-patch-path"
+            echo "::set-output name=patch_generated::false"
           else
-            PATCH_FILE_NAME=$(basename "$PATCH_FILE")
-            echo "Patch file generated: $PATCH_FILE_NAME"
-            echo "::set-output name=patch_file_name::$PATCH_FILE_NAME" # Output 'patch_file_name'
-            echo "::set-output name=patch_file_path::$PATCH_FILE"      # Output 'patch_file_path'
-            echo "::set-output name=patch_generated::true"             # Output 'patch_generated' flag
+            # Generate patch for the range of commits from merge-base to HEAD
+            git format-patch --no-stat --no-log -o "$PATCH_DIR" $(git merge-base origin/main HEAD)..HEAD
+            PATCH_FILE=$(find "$PATCH_DIR" -type f -name "*.patch")
+            if [[ -z "$PATCH_FILE" ]]; then
+              echo "No patch file generated. (This should not happen normally after merge)"
+              echo "::set-output name=patch_file_name::no-patch-generated"
+              echo "::set-output name=patch_file_path::no-patch-path"
+              echo "::set-output name=patch_generated::false"
+            else
+              PATCH_FILE_NAME=$(basename "$PATCH_FILE")
+              echo "Patch file generated: $PATCH_FILE_NAME"
+              echo "::set-output name=patch_file_name::$PATCH_FILE_NAME"
+              echo "::set-output name=patch_file_path::$PATCH_FILE"
+              echo "::set-output name=patch_generated::true"
+            fi
           fi
 
       - name: Create GitHub Release with Patch
