@@ -41,7 +41,7 @@ jobs:
             echo "::set-output name=patch_generated::false"
           else
             # Generate patch for the range of commits from merge-base to HEAD
-            git format-patch --no-stat --no-log -o "$PATCH_DIR" $(git merge-base origin/main HEAD)..HEAD
+            git format-patch --no-stat -o "$PATCH_DIR" $(git merge-base origin/main HEAD)..HEAD
             PATCH_FILE=$(find "$PATCH_DIR" -type f -name "*.patch")
             if [[ -z "$PATCH_FILE" ]]; then
               echo "No patch file generated. (This should not happen normally after merge)"
