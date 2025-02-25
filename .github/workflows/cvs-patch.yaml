@@ -6,18 +6,14 @@ on:
       - main
 
 jobs:
-  generate_cvs_patch:
+  cvs_patch_and_release:
     runs-on: ubuntu-latest
-    outputs: # Define job outputs
-      patch_file_name: ${{ steps.generate_patch.outputs.patch_file_name }}
-      patch_file_path: ${{ steps.generate_patch.outputs.patch_file_path }}
-      patch_generated: ${{ steps.generate_patch.outputs.patch_generated }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 2
+          fetch-depth: 0 # Checkout all commits
 
       - name: Set up Git identity
         run: |
@@ -30,64 +26,84 @@ jobs:
           PATCH_DIR="patches"
           mkdir -p "$PATCH_DIR"
 
-          # Fetch origin/main to ensure merge-base is accurate
-          git fetch origin main:origin/main
-
           # Check if it's the initial commit (still handle initial commit gracefully)
           if ! git rev-parse --short HEAD~1 > /dev/null 2>&1; then
             echo "Initial commit detected. Skipping patch generation for the first commit."
-            echo "::set-output name=patch_file_name::no-patch-generated"
-            echo "::set-output name=patch_file_path::no-patch-path"
-            echo "::set-output name=patch_generated::false"
+            echo "patch_file_name=no-patch-generated" >> "$GITHUB_OUTPUT"
+            echo "patch_file_path=no-patch-path" >> "$GITHUB_OUTPUT"
+            echo "patch_generated=false" >> "$GITHUB_OUTPUT"
           else
-            # Generate patch for the range of commits from merge-base to HEAD
-            git format-patch --no-stat --no-log -o "$PATCH_DIR" $(git merge-base origin/main HEAD)..HEAD
+            # Generate patch for the range of commits from parent of HEAD to HEAD
+            COMMIT_RANGE="HEAD^1..HEAD"
+            echo "Commit range for patch: $COMMIT_RANGE"
+            git format-patch --no-stat -o "$PATCH_DIR" "$COMMIT_RANGE"
             PATCH_FILE=$(find "$PATCH_DIR" -type f -name "*.patch")
             if [[ -z "$PATCH_FILE" ]]; then
-              echo "No patch file generated. (This should not happen normally after merge)"
-              echo "::set-output name=patch_file_name::no-patch-generated"
-              echo "::set-output name=patch_file_path::no-patch-path"
-              echo "::set-output name=patch_generated::false"
+              echo "Info: No patch file generated because no code changes detected in merge (or possibly initial workflow run)."
+              echo "patch_file_name=no-patch-generated" >> "$GITHUB_OUTPUT"
+              echo "patch_file_path=no-patch-path" >> "$GITHUB_OUTPUT"
+              echo "patch_generated=false" >> "$GITHUB_OUTPUT"
+              exit 1 # Exit with error to prevent further progress and indicate a problem with workflow
             else
               PATCH_FILE_NAME=$(basename "$PATCH_FILE")
               echo "Patch file generated: $PATCH_FILE_NAME"
-              echo "::set-output name=patch_file_name::$PATCH_FILE_NAME"
-              echo "::set-output name=patch_file_path::$PATCH_FILE"
-              echo "::set-output name=patch_generated::true"
+
+              # Get abbreviated commit hash for HEAD
+              HEAD_COMMIT_SHORT=$(git rev-parse --short HEAD)
+              echo "Abbreviated HEAD commit hash: $HEAD_COMMIT_SHORT"
+              
+              echo "patch_file_name=$PATCH_FILE_NAME" >> "$GITHUB_OUTPUT"
+              echo "patch_file_path=$PATCH_FILE" >> "$GITHUB_OUTPUT"
+              echo "patch_generated=true" >> "$GITHUB_OUTPUT"
+              echo "head_commit_short=$HEAD_COMMIT_SHORT" >> "$GITHUB_OUTPUT"
             fi
           fi
+        shell: /usr/bin/bash -e {0} # Use bash instead of sh
 
-      - name: Create GitHub Release with Patch
-        if: steps.generate_patch.outputs.patch_generated == 'true'
-        uses: softprops/action-gh-release@v1
+      - name: Create GitHub Release
+        if: ${{ steps.generate_patch.outputs.patch_generated == 'true' }} # Conditional release creation
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: cvs-sync-release
-          name: CVS Sync Patch - Commit ${{ github.sha }}
+          tag_name: cvs-sync-release-${{ github.run_id }}
+          name: CVS Patch Release - Commit ${{ steps.generate_patch.outputs.head_commit_short }}
           body: |
-            A patch file has been generated for the latest commit pushed to `main`: `${{ github.sha }}`.
+            ## Patch File Generated
 
-            **Instructions to apply this patch to your CVS working copy:**
+            A patch file has been automatically generated from the latest changes merged into the `main` branch.
 
-            1. **Download the attached patch file** (`${{ job.outputs.patch_file_name }}`) from this release.
+            1. **Download the attached patch file from this release.**
+
+            **Patch File Name:** ${{ steps.generate_patch.outputs.patch_file_name }}
+            **Patch File Path:** ${{ steps.generate_patch.outputs.patch_file_path }}
+
             2. **Transfer the patch file** to a machine with access to your CVS pserver and your CVS working copy.
             3. **Login to the CVS-capable node.**
             4. **Identify the *next* release to apply:**  Consult your CVS repository for the latest `git-hash-*` tag. The release to apply is the one for the Git commit *after* the commit hash in the latest CVS tag (or the very first release if no `git-hash-*` tags exist yet). **In most cases, you will simply apply the releases in the order they are created.**
             5. **Navigate to the root directory of your CVS working copy** in the terminal.
             6. **Apply the patch using the `patch` command:**
-               ```bash
-               patch -p1 < ${{ job.outputs.patch_file_name }}
-               ```
+
+            ```bash
+            patch -p1 < ${{ steps.generate_patch.outputs.patch_file_path }}
+            ```
+            
             7. **Resolve any conflicts** reported by the `patch` command manually in your CVS working copy. Use `cvs update -j <conflicting_revision>` if needed.
             8. **Build and thoroughly test** the build process in the CVS environment after applying the patch.
             9. **Commit the changes to CVS:**
+            
                ```bash
-               cvs commit -m "Sync from Git - Commit ${{ github.sha }}"
+               cvs commit -m "Sync from Git - Commit ${{ steps.generate_patch.outputs.head_commit_short }}"
                ```
+               
             10. **Crucially, create a CVS tag *immediately* after a *successful* CVS commit:**
+            
                 ```bash
-                cvs tag git-hash-${{ github.sha }}
+                cvs tag git-hash-${{ steps.generate_patch.outputs.head_commit_short }}
                 ```
-                **Use the Git commit SHA `${{ github.sha }}` from this GitHub Release in the CVS tag name.** This tag is essential for tracking the CVS sync state and identifying the next release to apply.
-
-          files: |
-            ${{ job.outputs.patch_file_path }}
+                
+                **Use the Git commit hash `${{ steps.generate_patch.outputs.head_commit_short }}` from this GitHub Release in the CVS tag name.** This tag is essential for tracking the CVS sync state and identifying the next release to apply.
+          draft: false
+          prerelease: false
+          files: ${{ steps.generate_patch.outputs.patch_file_path }}
