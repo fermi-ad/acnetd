@@ -8,6 +8,8 @@ on:
 jobs:
   cvs_patch_and_release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Important: Grant workflow the content: write permission
 
     steps:
       - name: Checkout code
