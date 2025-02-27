@@ -21,7 +21,7 @@ jobs:
           git config --local user.email "actions@github.com"
 
       - name: Generate patch file
-        id: generate_patch
+        id: generate-patch
         run: |
           PATCH_DIR="patches"
           mkdir -p "$PATCH_DIR"
@@ -60,15 +60,23 @@ jobs:
           fi
         shell: /usr/bin/bash -e {0} # Use bash instead of sh
 
+      - name: Generate a token
+        if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }} # Conditional release creation
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.ACTION_RELEASES_APP_ID }}
+          private-key: ${{ secrets.ACTION_RELEASES_PRIVATE_KEY }}
+
       - name: Create GitHub Release
-        if: ${{ steps.generate_patch.outputs.patch_generated == 'true' }} # Conditional release creation
-        id: create_release
+        if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }} # Conditional release creation
+        id: create-release
         uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         with:
           tag_name: cvs-sync-release-${{ github.run_id }}
-          name: CVS Patch Release - Commit ${{ steps.generate_patch.outputs.head_commit_short }}
+          name: CVS Patch Release - Commit ${{ steps.generate-patch.outputs.head_commit_short }}
           body: |
             ## Patch File Generated
 
@@ -76,8 +84,8 @@ jobs:
 
             1. **Download the attached patch file from this release.**
 
-            **Patch File Name:** ${{ steps.generate_patch.outputs.patch_file_name }}
-            **Patch File Path:** ${{ steps.generate_patch.outputs.patch_file_path }}
+            **Patch File Name:** ${{ steps.generate-patch.outputs.patch_file_name }}
+            **Patch File Path:** ${{ steps.generate-patch.outputs.patch_file_path }}
 
             2. **Transfer the patch file** to a machine with access to your CVS pserver and your CVS working copy.
             3. **Login to the CVS-capable node.**
@@ -86,7 +94,7 @@ jobs:
             6. **Apply the patch using the `patch` command:**
 
             ```bash
-            patch -p1 < ${{ steps.generate_patch.outputs.patch_file_path }}
+            patch -p1 < ${{ steps.generate-patch.outputs.patch_file_path }}
             ```
             
             7. **Resolve any conflicts** reported by the `patch` command manually in your CVS working copy. Use `cvs update -j <conflicting_revision>` if needed.
@@ -94,16 +102,16 @@ jobs:
             9. **Commit the changes to CVS:**
             
                ```bash
-               cvs commit -m "Sync from Git - Commit ${{ steps.generate_patch.outputs.head_commit_short }}"
+               cvs commit -m "Sync from Git - Commit ${{ steps.generate-patch.outputs.head_commit_short }}"
                ```
                
             10. **Crucially, create a CVS tag *immediately* after a *successful* CVS commit:**
             
                 ```bash
-                cvs tag git-hash-${{ steps.generate_patch.outputs.head_commit_short }}
+                cvs tag git-hash-${{ steps.generate-patch.outputs.head_commit_short }}
                 ```
                 
-                **Use the Git commit hash `${{ steps.generate_patch.outputs.head_commit_short }}` from this GitHub Release in the CVS tag name.** This tag is essential for tracking the CVS sync state and identifying the next release to apply.
+                **Use the Git commit hash `${{ steps.generate-patch.outputs.head_commit_short }}` from this GitHub Release in the CVS tag name.** This tag is essential for tracking the CVS sync state and identifying the next release to apply.
           draft: false
           prerelease: false
-          files: ${{ steps.generate_patch.outputs.patch_file_path }}
+          files: ${{ steps.generate-patch.outputs.patch_file_path }}
