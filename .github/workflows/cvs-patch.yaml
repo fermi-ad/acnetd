@@ -8,12 +8,20 @@ on:
 jobs:
   cvs_patch_and_release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Important: Grant workflow the content: write permission
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Checkout all commits
+
+      - name: Debug - Print ACTION_RELEASES_APP_ID (Before Set up Git)
+        run: |
+          echo "Debugging ACTION_RELEASES_APP_ID:"
+          echo "vars.ACTION_RELEASES_APP_ID: ${{ vars.ACTION_RELEASES_APP_ID }}"
+        shell: /usr/bin/bash -e {0}
 
       - name: Set up Git identity
         run: |
@@ -60,6 +68,13 @@ jobs:
           fi
         shell: /usr/bin/bash -e {0} # Use bash instead of sh
 
+      - name: Debug - Print ACTION_RELEASES_APP_ID (Before Generate Token)
+        if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }}
+        run: |
+          echo "Debugging ACTION_RELEASES_APP_ID (Before Generate Token):"
+          echo "vars.ACTION_RELEASES_APP_ID: ${{ vars.ACTION_RELEASES_APP_ID }}"
+        shell: /usr/bin/bash -e {0}
+
       - name: Generate a token
         if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }} # Conditional release creation
         id: generate-token
@@ -67,6 +82,15 @@ jobs:
         with:
           app-id: ${{ vars.ACTION_RELEASES_APP_ID }}
           private-key: ${{ secrets.ACTION_RELEASES_PRIVATE_KEY }}
+
+      - name: Debug - Print ACTION_RELEASES_APP_ID (After Generate Token)
+        if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }}
+        run: |
+          echo "Debugging ACTION_RELEASES_APP_ID (After Generate Token):"
+          echo "vars.ACTION_RELEASES_APP_ID: ${{ vars.ACTION_RELEASES_APP_ID }}"
+          echo "Token generation step result: ${{ steps.generate-token.outcome }}"
+          echo "Token output: ${{ steps.generate-token.outputs.token }}" # Be cautious printing tokens in full logs in production
+        shell: /usr/bin/bash -e {0}
 
       - name: Create GitHub Release
         if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }} # Conditional release creation
@@ -115,3 +139,10 @@ jobs:
           draft: false
           prerelease: false
           files: ${{ steps.generate-patch.outputs.patch_file_path }}
+
+      - name: Debug - Print ACTION_RELEASES_APP_ID (Before Create Release)
+        if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }}
+        run: |
+          echo "Debugging ACTION_RELEASES_APP_ID (Before Create Release):"
+          echo "vars.ACTION_RELEASES_APP_ID: ${{ vars.ACTION_RELEASES_APP_ID }}"
+        shell: /usr/bin/bash -e {0}
