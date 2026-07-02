@@ -202,7 +202,8 @@ struct CmdLineArgs {
 
 	while (getline(is, s, ',')) {
 	    taskReject.insert(taskhandle_t(ator(s.c_str())));
-	    syslog(LOG_NOTICE, "rejecting requests to task '%s'", s.c_str());
+	    syslog(LOG_NOTICE, "blocking '%s' requests from TCP clients",
+		   s.c_str());
 	}
     }
 
