@@ -62,20 +62,12 @@ jobs:
           fi
         shell: /usr/bin/bash -e {0} # Use bash instead of sh
 
-      - name: Generate a token
-        if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }} # Conditional release creation
-        id: generate-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ vars.ACTION_RELEASES_APP_ID }}
-          private-key: ${{ secrets.ACTION_RELEASES_PRIVATE_KEY }}
-
       - name: Create GitHub Release
         if: ${{ steps.generate-patch.outputs.patch_generated == 'true' }} # Conditional release creation
         id: create-release
         uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: cvs-sync-release-${{ github.run_id }}
           name: CVS Patch Release - Commit ${{ steps.generate-patch.outputs.head_commit_short }}
@@ -117,7 +109,3 @@ jobs:
           draft: false
           prerelease: false
           files: ${{ steps.generate-patch.outputs.patch_file_path }}
-        run: |
-          echo "Debugging ACTION_RELEASES_APP_ID (Before Create Release):"
-          echo "vars.ACTION_RELEASES_APP_ID: ${{ vars.ACTION_RELEASES_APP_ID }}"
-        shell: /usr/bin/bash -e {0}
