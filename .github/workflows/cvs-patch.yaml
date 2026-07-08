@@ -38,9 +38,9 @@ jobs:
             # Generate patch for the range of commits from parent of HEAD to HEAD
             COMMIT_RANGE="HEAD^1..HEAD"
             echo "Commit range for patch: $COMMIT_RANGE"
-            git format-patch --no-stat -o "$PATCH_DIR" "$COMMIT_RANGE"
-            PATCH_FILE=$(find "$PATCH_DIR" -type f -name "*.patch")
-            if [[ -z "$PATCH_FILE" ]]; then
+            PATCH_FILE="$PATCH_DIR/$(git rev-parse --short HEAD).patch"
+            git format-patch --no-stat --stdout "$COMMIT_RANGE" > "$PATCH_FILE"
+            if [[ ! -s "$PATCH_FILE" ]]; then
               echo "Info: No patch file generated because no code changes detected in merge (or possibly initial workflow run)."
               echo "patch_file_name=no-patch-generated" >> "$GITHUB_OUTPUT"
               echo "patch_file_path=no-patch-path" >> "$GITHUB_OUTPUT"
