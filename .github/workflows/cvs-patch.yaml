@@ -70,6 +70,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: cvs-sync-release-${{ github.run_id }}
+          # Pin the release to the exact commit this patch was generated from.
+          # Without this, GitHub defaults target_commitish to the branch name
+          # ("main"), and cvs-sync.sh reads target_commitish as the commit SHA
+          # to embed in the CVS commit message and `cvs tag git-hash-<sha>`.
+          # Leaving it unset causes every CVS sync to tag "git-hash-main"
+          # instead of a real commit hash, silently breaking the tag-based
+          # tracking the manual sync instructions below rely on.
+          target_commitish: ${{ github.sha }}
           name: CVS Patch Release - Commit ${{ steps.generate-patch.outputs.head_commit_short }}
           body: |
             ## Patch File Generated
